@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS TRADERS - ERP Dashboard</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+        :root {
+            --brand:#1e40af; --brand2:#3b82f6;
+            --success:#059669; --success-bg:#ecfdf5;
+            --danger:#dc2626;  --danger-bg:#fef2f2;
+            --warning:#d97706; --warning-bg:#fffbeb;
+            --sky:#0284c7;
+            --bg:#f0f4f8; --card:#ffffff;
+            --border:#e2e8f0; --text:#1e293b; --muted:#64748b;
+            --primary:#0f172a; --radius:14px;
+        }
+        * { box-sizing:border-box; }
+        body { font-family:'Inter',sans-serif; background:var(--bg); margin:0; padding:0; color:var(--text); min-height:100vh; }
+
+        #loading-screen { position:fixed; inset:0; background:linear-gradient(135deg,#0f172a,#1e40af); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; color:white; }
+        #loading-screen .logo { font-size:32px; font-weight:800; letter-spacing:4px; margin-bottom:12px; }
+        #loading-screen .sub  { font-size:12px; opacity:0.6; letter-spacing:2px; text-transform:uppercase; margin-bottom:32px; }
+        .spinner { width:36px; height:36px; border:3px solid rgba(255,255,255,0.2); border-top-color:white; border-radius:50%; animation:spin 0.8s linear infinite; }
+        @keyframes spin { to{ transform:rotate(360deg); } }
+
+        #toast { position:fixed; bottom:24px; right:24px; z-index:9999; background:#1e293b; color:white; padding:12px 20px; border-radius:10px; font-size:13px; font-weight:600; opacity:0; transition:opacity 0.3s; pointer-events:none; max-width:320px; }
+        #toast.show { opacity:1; }
+
+        .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000; padding:16px; }
+        .modal-backdrop.open { display:flex; }
+        .modal-box { background:white; border-radius:16px; padding:28px; width:100%; max-width:440px; box-shadow:0 20px 60px rgba(0,0,0,0.2); animation:popIn 0.2s ease; }
+        @keyframes popIn { from{transform:scale(0.92);opacity:0} to{transform:scale(1);opacity:1} }
+        .modal-box h3 { margin:0 0 18px; font-size:16px; color:var(--primary); }
+        .modal-actions { display:flex; gap:10px; margin-top:16px; }
+        .modal-actions button { flex:1; }
+
+        #auth-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+        .auth-card { background:var(--card); border-radius:20px; box-shadow:0 12px 40px rgba(15,23,42,0.12); overflow:hidden; width:100%; max-width:420px; }
+        .auth-top { background:linear-gradient(135deg,#0f172a 0%,#1e40af 100%); padding:32px 28px 24px; text-align:center; color:white; }
+        .auth-logo { font-size:28px; font-weight:800; letter-spacing:3px; }
+        .auth-sub  { font-size:11px; opacity:0.7; margin-top:4px; letter-spacing:1px; text-transform:uppercase; }
+        .auth-tabs { display:flex; border-bottom:2px solid var(--border); }
+        .auth-tab  { flex:1; padding:14px; text-align:center; font-size:13px; font-weight:700; color:var(--muted); cursor:pointer; background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; transition:all 0.2s; }
+        .auth-tab.active { color:var(--brand); border-bottom-color:var(--brand); }
+        .auth-body { padding:24px 28px 28px; }
+        .auth-panel { display:none; }
+        .auth-panel.active { display:block; }
+        .alert-box { display:none; font-size:13px; font-weight:600; padding:10px 14px; border-radius:8px; margin-bottom:14px; }
+        .alert-danger  { background:var(--danger-bg);  color:var(--danger);  border-left:3px solid var(--danger); }
+        .alert-warning { background:var(--warning-bg); color:var(--warning); border-left:3px solid var(--warning); }
+        .alert-success { background:var(--success-bg); color:var(--success); border-left:3px solid var(--success); }
+
+        #main-app { display:none; }
+        .app-wrap { max-width:1440px; margin:0 auto; padding:20px; }
+
+        .app-header { background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%); border-radius:var(--radius); color:white; padding:20px 28px; display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; box-shadow:0 8px 24px rgba(15,23,42,0.18); flex-wrap:wrap; gap:12px; }
+        .brand-name { font-size:24px; font-weight:800; letter-spacing:2px; }
+        .brand-sub  { font-size:10px; opacity:0.65; letter-spacing:1px; text-transform:uppercase; margin-top:2px; }
+        .header-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .clock-badge { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:6px 12px; font-size:12px; font-family:'JetBrains Mono',monospace; }
+        .user-chip { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:6px; }
+        .role-badge { background:var(--brand2); color:white; font-size:9px; font-weight:700; padding:2px 7px; border-radius:4px; }
+        .btn-hdr { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:white; padding:6px 14px; border-radius:7px; font-size:12px; font-weight:600; cursor:pointer; width:auto; font-family:'Inter',sans-serif; transition:background 0.2s; }
+        .btn-hdr:hover { background:rgba(255,255,255,0.22); }
+        .btn-hdr.danger { background:rgba(220,38,38,0.5); }
+        .btn-hdr.danger:hover { background:var(--danger); }
+
+        .requests-panel { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+        .requests-panel h3 { margin:0 0 14px; font-size:13px; font-weight:700; color:var(--primary); border-bottom:2px solid var(--bg); padding-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
+        .badge-count { background:var(--warning); color:white; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; }
+        .req-item { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-radius:10px; margin-bottom:8px; border:1px solid var(--border); background:#fafafa; gap:10px; flex-wrap:wrap; }
+        .req-item:last-child { margin-bottom:0; }
+        .req-avatar { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,var(--brand),var(--brand2)); color:white; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; flex-shrink:0; }
+        .req-name { font-size:13px; font-weight:700; color:var(--primary); }
+        .req-time { font-size:11px; color:var(--muted); }
+        .req-status { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
+        .req-status.pending  { background:var(--warning-bg); color:var(--warning); }
+        .req-status.approved { background:var(--success-bg); color:var(--success); }
+        .req-status.rejected { background:var(--danger-bg);  color:var(--danger); }
+        .req-actions { display:flex; gap:6px; }
+        .req-actions button { width:auto; padding:5px 14px; font-size:12px; border-radius:6px; }
+        .empty-req { text-align:center; padding:20px; color:var(--muted); font-size:13px; }
+
+        .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:14px; margin-bottom:24px; }
+        .sum-card { background:var(--card); padding:18px 16px; border-radius:var(--radius); box-shadow:0 2px 8px rgba(0,0,0,0.05); border-top:4px solid #cbd5e1; transition:transform 0.2s,box-shadow 0.2s; }
+        .sum-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.08); }
+        .sum-card.gross   { border-top-color:#6366f1; }
+        .sum-card.netsale { border-top-color:var(--brand); }
+        .sum-card.cost    { border-top-color:var(--muted); }
+        .sum-card.expenses{ border-top-color:var(--danger); }
+        .sum-card.discount{ border-top-color:var(--sky); }
+        .sum-card.recovery{ border-top-color:var(--success); }
+        .sum-card.credit  { border-top-color:var(--warning); }
+        .sum-card.profit  { border-top-color:var(--success); background:var(--success-bg); }
+        .sum-card.loss    { border-top-color:var(--danger);  background:var(--danger-bg); }
+        .sum-title { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; }
+        .sum-val   { font-size:19px; font-weight:800; margin-top:6px; font-family:'JetBrains Mono',monospace; }
+
+        .module-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; margin-bottom:24px; }
+        .module-box { background:var(--card); padding:22px; border-radius:var(--radius); box-shadow:0 2px 8px rgba(0,0,0,0.05); border:1px solid var(--border); }
+        .module-box h3 { margin:0 0 16px; font-size:13px; font-weight:700; color:var(--primary); border-bottom:2px solid var(--bg); padding-bottom:10px; }
+
+        .form-group { margin-bottom:11px; }
+        .form-group label { display:block; font-size:11px; font-weight:600; margin-bottom:4px; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; }
+        .form-group input, .form-group select { width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; background:#f8fafc; outline:none; font-family:'Inter',sans-serif; transition:border-color 0.2s,background 0.2s; }
+        .form-group input:focus, .form-group select:focus { border-color:var(--brand); background:white; }
+        .input-suffix-wrap { position:relative; }
+        .input-suffix-wrap input { padding-right:38px; }
+        .input-suffix { position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:13px; font-weight:700; color:var(--muted); pointer-events:none; }
+        .discount-preview { font-size:11px; color:var(--sky); font-weight:600; margin-top:4px; min-height:16px; }
+        .pass-strength { font-size:11px; margin-top:4px; font-weight:600; min-height:16px; }
+
+        button { width:100%; padding:10px; background:var(--brand); color:white; border:none; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.2s; }
+        button:hover:not(:disabled) { filter:brightness(1.1); transform:translateY(-1px); }
+        button:active { transform:translateY(0); }
+        button.btn-success { background:var(--success); }
+        button.btn-danger  { background:var(--danger); }
+        button.btn-ghost   { background:transparent; color:var(--muted); border:1.5px solid var(--border); }
+        button.btn-ghost:hover:not(:disabled) { background:var(--bg); color:var(--text); filter:none; }
+        button:disabled { background:#cbd5e1 !important; cursor:not-allowed; transform:none !important; filter:none !important; }
+
+        .data-list { max-height:210px; overflow-y:auto; margin-top:12px; border:1px solid var(--border); border-radius:8px; }
+        table { width:100%; border-collapse:collapse; font-size:12px; }
+        th,td { padding:8px 10px; text-align:left; border-bottom:1px solid var(--border); }
+        th { background:#f8fafc; color:var(--muted); font-weight:700; font-size:11px; text-transform:uppercase; position:sticky; top:0; z-index:1; }
+        tr:last-child td { border-bottom:none; }
+        tr:hover td { background:#f8fafc; }
+        .del-btn { width:auto; padding:3px 8px; background:transparent; color:var(--danger); border:1px solid #fecaca; border-radius:5px; font-size:11px; cursor:pointer; }
+        .del-btn:hover { background:var(--danger); color:white; border-color:var(--danger); transform:none; }
+        .date-chip { font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; background:var(--bg); padding:2px 6px; border-radius:4px; white-space:nowrap; }
+        .list-item { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; border-bottom:1px solid var(--border); font-size:12px; }
+        .list-item:last-child { border-bottom:none; }
+        .list-item:hover { background:#f8fafc; }
+        .empty-state { text-align:center; padding:20px; color:var(--muted); font-size:12px; }
+        .empty-icon  { font-size:26px; margin-bottom:6px; }
+        ::-webkit-scrollbar { width:4px; height:4px; }
+        ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
+        @media(max-width:640px){ .app-header{flex-direction:column;align-items:flex-start;} .summary-grid{grid-template-columns:repeat(2,1fr);} }
+    </style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+    <div class="logo">MS TRADERS</div>
+    <div class="sub">ERP System Loading...</div>
+    <div class="spinner"></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- PASSWORD CHANGE MODAL -->
+<div class="modal-backdrop" id="modal-changepass">
+    <div class="modal-box">
+        <h3>🔑 Password Change</h3>
+        <div class="form-group"><label>Purana Password</label><input type="password" id="cp-old" placeholder="Purana password"></div>
+        <div class="form-group"><label>Naya Password</label><input type="password" id="cp-new" placeholder="Min 6 characters"></div>
+        <div class="form-group"><label>Confirm</label><input type="password" id="cp-confirm" placeholder="Dobara likhein"></div>
+        <div id="cp-error" style="display:none;color:var(--danger);font-size:12px;font-weight:600;margin-top:8px;"></div>
+        <div class="modal-actions">
+            <button class="btn-ghost" onclick="closeModal('modal-changepass')">Cancel</button>
+            <button class="btn-success" onclick="changePassword()">✔ Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-backdrop" id="modal-delete">
+    <div class="modal-box">
+        <h3>🗑️ Delete Confirm</h3>
+        <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">Kya aap sure hain? Yeh permanently delete ho jayega.</p>
+        <div class="modal-actions">
+            <button class="btn-ghost" onclick="closeModal('modal-delete')">Cancel</button>
+            <button class="btn-danger" onclick="confirmDelete()">Haan, Delete Karo</button>
+        </div>
+    </div>
+</div>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen" style="display:none;">
+    <div class="auth-card">
+        <div class="auth-top">
+            <div class="auth-logo">MS TRADERS</div>
+            <div class="auth-sub">Enterprise Resource Planning</div>
+        </div>
+        <div class="auth-tabs">
+            <button class="auth-tab active" onclick="switchTab('login')">🔐 Login</button>
+            <button class="auth-tab" onclick="switchTab('register')">📝 Partner Register</button>
+        </div>
+        <div class="auth-body">
+            <!-- LOGIN -->
+            <div class="auth-panel active" id="panel-login">
+                <div class="alert-box alert-danger"  id="login-err">❌ Galat Username ya Password!</div>
+                <div class="alert-box alert-warning" id="login-pending">⚠️ Aapki request pending hai. Admin approve kare ga.</div>
+                <div class="alert-box alert-danger"  id="login-rejected">❌ Aapki request reject ho gayi. Admin se rabta karein.</div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="login-role" onchange="onRoleChange()">
+                        <option value="">-- Role chunein --</option>
+                        <option value="admin">👑 Admin</option>
+                        <option value="partner">🤝 Partner</option>
+                    </select>
+                </div>
+                <div id="grp-login-user" style="display:none;" class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="login-user" placeholder="Username daalen">
+                </div>
+                <div id="grp-login-pass" style="display:none;" class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-pass" placeholder="Password daalen">
+                </div>
+                <button id="btn-login" onclick="doLogin()" style="display:none;">🔐 Login</button>
+            </div>
+            <!-- REGISTER -->
+            <div class="auth-panel" id="panel-register">
+                <div class="alert-box alert-danger"  id="reg-err"></div>
+                <div class="alert-box alert-success" id="reg-success">✅ Request bhej di! Admin approve karega.</div>
+                <div class="form-group">
+                    <label>Username Chunein</label>
+                    <input type="text" id="reg-user" placeholder="e.g., ali_partner" oninput="checkUsername()">
+                    <div id="user-check" style="font-size:11px;margin-top:4px;font-weight:600;min-height:16px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Password Set Karein</label>
+                    <input type="password" id="reg-pass" placeholder="Min 6 characters" oninput="checkPassStrength()">
+                    <div class="pass-strength" id="pass-strength"></div>
+                </div>
+                <div class="form-group">
+                    <label>Password Confirm</label>
+                    <input type="password" id="reg-confirm" placeholder="Dobara likhein">
+                </div>
+                <button class="btn-success" onclick="doRegister()">📨 Request Bhejein</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-app">
+    <div class="app-wrap">
+        <div class="app-header">
+            <div>
+                <div class="brand-name">MS TRADERS</div>
+                <div class="brand-sub">ERP & Financial Dashboard</div>
+            </div>
+            <div class="header-right">
+                <div class="clock-badge" id="live-clock">--:--:--</div>
+                <div class="user-chip">👤 <span id="user-display-name"></span> <span class="role-badge" id="role-badge">ADMIN</span></div>
+                <button class="btn-hdr" onclick="openModal('modal-changepass')">🔑 Password</button>
+                <button class="btn-hdr danger" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- PARTNER REQUESTS (Admin) -->
+        <div id="requests-panel" class="requests-panel" style="display:none;">
+            <h3>🤝 Partner Requests <span class="badge-count" id="pending-count" style="display:none;">0</span></h3>
+            <div id="requests-list"><div class="empty-req">📭 Koi request nahi</div></div>
+        </div>
+
+        <!-- SUMMARY -->
+        <div class="summary-grid">
+            <div class="sum-card gross" id="card-gross"><div class="sum-title">Gross Sale</div><div class="sum-val" id="log-gross" style="color:#6366f1;">0</div></div>
+            <div class="sum-card discount" id="card-disc"><div class="sum-title">Total Discount</div><div class="sum-val" id="log-disc" style="color:var(--sky);">0</div></div>
+            <div class="sum-card netsale"><div class="sum-title">Net Sale</div><div class="sum-val" id="log-net" style="color:var(--brand);">0</div></div>
+            <div class="sum-card cost" id="card-cost"><div class="sum-title">Product Cost</div><div class="sum-val" id="log-cost">0</div></div>
+            <div class="sum-card expenses" id="card-exp"><div class="sum-title">Expenses</div><div class="sum-val" id="log-exp" style="color:var(--danger);">0</div></div>
+            <div class="sum-card recovery"><div class="sum-title">Cash Recovery</div><div class="sum-val" id="log-rec" style="color:var(--success);">0</div></div>
+            <div class="sum-card credit"><div class="sum-title">Market Credit</div><div class="sum-val" id="log-credit" style="color:var(--warning);">0</div></div>
+            <div class="sum-card" id="pl-card"><div class="sum-title" id="pl-title">Net Report</div><div class="sum-val" id="log-pl">0</div></div>
+        </div>
+
+        <!-- MODULES -->
+        <div class="module-grid">
+            <!-- PRODUCTS -->
+            <div class="module-box" id="mod-products">
+                <h3>📦 Product Register</h3>
+                <div class="form-group"><label>Brand</label>
+                    <select id="p-brand">
+                        <option value="Young Doctors Products">Young Doctors Products</option>
+                        <option value="MS Products">MS Products</option>
+                    </select></div>
+                <div class="form-group"><label>Product Name</label><input type="text" id="p-name" placeholder="e.g., Face Wash"></div>
+                <div class="form-group"><label>Cost Price (PKR)</label><input type="number" id="p-cost" placeholder="Manufacturing cost" min="0"></div>
+                <div class="form-group"><label>Sale Price (PKR)</label><input type="number" id="p-price" placeholder="Retail price" min="0"></div>
+                <button class="btn-success" onclick="addProduct()">+ Product Add Karein</button>
+                <div class="data-list" id="product-list-view"><div class="empty-state"><div class="empty-icon">📦</div>Koi product nahi</div></div>
+            </div>
+
+            <!-- SALES -->
+            <div class="module-box" id="mod-sales">
+                <h3>📈 Daily Sales Log</h3>
+                <div id="sales-form-admin">
+                    <div class="form-group"><label>Product</label><select id="s-product" onchange="updateDiscPreview()"></select></div>
+                    <div class="form-group"><label>Quantity</label><input type="number" id="s-qty" placeholder="Units biki" min="1" oninput="updateDiscPreview()"></div>
+                    <div class="form-group">
+                        <label>Discount % per Unit</label>
+                        <div class="input-suffix-wrap">
+                            <input type="number" id="s-disc" placeholder="0" min="0" max="100" value="0" oninput="updateDiscPreview()">
+                            <span class="input-suffix">%</span>
+                        </div>
+                        <div class="discount-preview" id="disc-preview"></div>
+                    </div>
+                    <button onclick="addSale()">⚡ Sale Record Karein</button>
+                </div>
+                <div class="data-list">
+                    <table><thead><tr><th>Product</th><th>Qty</th><th>Gross</th><th>Disc%</th><th>Disc</th><th>Net</th><th>Date</th><th id="s-del-th"></th></tr></thead>
+                    <tbody id="sales-rows"></tbody></table>
+                </div>
+            </div>
+
+            <!-- EXPENSES -->
+            <div class="module-box" id="mod-expenses">
+                <h3>💸 Expenses</h3>
+                <div class="form-group"><label>Category</label>
+                    <select id="e-type">
+                        <option value="Marketing">Marketing</option>
+                        <option value="Salaries">Salaries</option>
+                        <option value="Rent">Shop Rent</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Others">Other</option>
+                    </select></div>
+                <div class="form-group"><label>Amount (PKR)</label><input type="number" id="e-amount" placeholder="Raqam" min="0"></div>
+                <div class="form-group"><label>Details</label><input type="text" id="e-desc" placeholder="e.g., Shop kiraya"></div>
+                <button class="btn-success" onclick="addExpense()">📝 Record Karein</button>
+                <div class="data-list">
+                    <table><thead><tr><th>Type</th><th>Details</th><th>Amount</th><th>Date</th><th></th></tr></thead>
+                    <tbody id="exp-rows"></tbody></table>
+                </div>
+            </div>
+
+            <!-- RECOVERY -->
+            <div class="module-box" id="mod-recovery">
+                <h3>💰 Cash Recovery</h3>
+                <div id="rec-form-admin">
+                    <div class="form-group"><label>Client / Party</label><input type="text" id="r-desc" placeholder="Customer naam"></div>
+                    <div class="form-group"><label>Amount (PKR)</label><input type="number" id="r-amount" placeholder="Collected cash" min="0"></div>
+                    <button class="btn-success" onclick="addRecovery()">✔ Record Karein</button>
+                </div>
+                <div class="data-list">
+                    <table><thead><tr><th>Party</th><th>Amount</th><th>Date</th><th id="r-del-th"></th></tr></thead>
+                    <tbody id="rec-rows"></tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp }                          from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc,
+         collection, addDoc, onSnapshot,
+         deleteDoc, updateDoc, query, orderBy }   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+// ====== FIREBASE CONFIG ======
+const firebaseConfig = {
+    apiKey:            "AIzaSyBM-rmI21JoBlVeNOlEs6Gjix1zRNw2uDI",
+    authDomain:        "ms-traders-erp.firebaseapp.com",
+    projectId:         "ms-traders-erp",
+    storageBucket:     "ms-traders-erp.firebasestorage.app",
+    messagingSenderId: "444286214691",
+    appId:             "1:444286214691:web:caf851806e4d12d8944796"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ====== STATE ======
+let currentRole     = null;
+let currentUsername = null;
+let deleteTarget    = null;
+let unsubscribers   = [];
+
+// ====== CLOCK ======
+setInterval(() => {
+    const el = document.getElementById('live-clock');
+    if(!el) return;
+    const n = new Date();
+    el.textContent = n.toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'2-digit'}) + '  ' +
+                     n.toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+}, 1000);
+
+// ====== HELPERS ======
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+window.openModal  = openModal;
+window.closeModal = closeModal;
+
+function nowStamp() {
+    const n = new Date();
+    return n.toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}) + ' ' +
+           n.toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit',hour12:true});
+}
+function getVal(id) { return document.getElementById(id).value.trim(); }
+function getNum(id) { return parseFloat(document.getElementById(id).value) || 0; }
+function clearF(...ids) { ids.forEach(id => { document.getElementById(id).value=''; }); }
+function show(id, d='block') { document.getElementById(id).style.display=d; }
+function hide(id)            { document.getElementById(id).style.display='none'; }
+
+// ====== HIDE LOADING ======
+function hideLoading() {
+    const ls = document.getElementById('loading-screen');
+    ls.style.opacity='0'; ls.style.transition='opacity 0.4s';
+    setTimeout(()=>{ ls.style.display='none'; show('auth-screen','flex'); }, 400);
+}
+
+// ====== AUTH TABS ======
+function switchTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach((t,i) => {
+        t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register'));
+    });
+    document.getElementById('panel-login').classList.toggle('active', tab==='login');
+    document.getElementById('panel-register').classList.toggle('active', tab==='register');
+}
+window.switchTab = switchTab;
+
+// ====== USERNAME CHECK ======
+async function checkUsername() {
+    const uname = getVal('reg-user');
+    const el    = document.getElementById('user-check');
+    if(!uname) { el.textContent=''; return; }
+    if(uname.length < 3)                       { el.style.color='var(--danger)'; el.textContent='❌ Min 3 chars'; return; }
+    if(!/^[a-zA-Z0-9_]+$/.test(uname))        { el.style.color='var(--danger)'; el.textContent='❌ Sirf letters, numbers, _'; return; }
+    if(uname.toLowerCase() === 'admin')        { el.style.color='var(--danger)'; el.textContent='❌ Reserved naam'; return; }
+    // Check Firestore
+    const snap = await getDoc(doc(db,'partnerRequests', uname.toLowerCase()));
+    if(snap.exists()) { el.style.color='var(--danger)'; el.textContent='❌ Username pehle se liya hua'; return; }
+    el.style.color='var(--success)'; el.textContent='✅ Available!';
+}
+window.checkUsername = checkUsername;
+
+function checkPassStrength() {
+    const p  = document.getElementById('reg-pass').value;
+    const el = document.getElementById('pass-strength');
+    if(!p)        { el.textContent=''; return; }
+    if(p.length<6){ el.style.color='var(--danger)';  el.textContent='🔴 Bahut chota'; return; }
+    if(p.length<9){ el.style.color='var(--warning)'; el.textContent='🟡 Theek hai'; return; }
+    el.style.color='var(--success)'; el.textContent='🟢 Strong!';
+}
+window.checkPassStrength = checkPassStrength;
+
+// ====== REGISTER ======
+async function doRegister() {
+    hide('reg-err'); hide('reg-success');
+    const uname   = getVal('reg-user');
+    const pass    = document.getElementById('reg-pass').value;
+    const confirm = document.getElementById('reg-confirm').value;
+    const errEl   = document.getElementById('reg-err');
+    function err(msg){ errEl.textContent=msg; show('reg-err'); }
+
+    if(!uname)            { err('❌ Username likhein!'); return; }
+    if(uname.length<3)    { err('❌ Username min 3 chars!'); return; }
+    if(!/^[a-zA-Z0-9_]+$/.test(uname)) { err('❌ Invalid username!'); return; }
+    if(uname.toLowerCase()==='admin')   { err('❌ Reserved naam!'); return; }
+    if(pass.length<6)     { err('❌ Password min 6 chars!'); return; }
+    if(pass!==confirm)    { err('❌ Password match nahi!'); return; }
+
+    const snap = await getDoc(doc(db,'partnerRequests', uname.toLowerCase()));
+    if(snap.exists())     { err('❌ Username pehle se liya hua!'); return; }
+
+    await setDoc(doc(db,'partnerRequests', uname.toLowerCase()), {
+        username: uname, password: pass,
+        status: 'pending', date: nowStamp()
+    });
+    show('reg-success');
+    clearF('reg-user','reg-pass','reg-confirm');
+    document.getElementById('user-check').textContent='';
+    document.getElementById('pass-strength').textContent='';
+    showToast('📨 Request bhej di! Admin approve karega.');
+}
+window.doRegister = doRegister;
+
+// ====== LOGIN ======
+function onRoleChange() {
+    const role = getVal('login-role');
+    ['login-err','login-pending','login-rejected'].forEach(hide);
+    ['grp-login-user','grp-login-pass','btn-login'].forEach(hide);
+    clearF('login-user','login-pass');
+    if(role==='admin') {
+        document.getElementById('login-user').value    = 'admin';
+        document.getElementById('login-user').readOnly = true;
+        document.getElementById('login-user').style.background='#f1f5f9';
+        show('grp-login-user'); show('grp-login-pass'); show('btn-login');
+    } else if(role==='partner') {
+        document.getElementById('login-user').readOnly = false;
+        document.getElementById('login-user').style.background='';
+        show('grp-login-user'); show('grp-login-pass'); show('btn-login');
+    }
+}
+window.onRoleChange = onRoleChange;
+
+async function doLogin() {
+    const role  = getVal('login-role');
+    const uname = getVal('login-user');
+    const pass  = document.getElementById('login-pass').value;
+    ['login-err','login-pending','login-rejected'].forEach(hide);
+    if(!role||!uname||!pass) { showToast('❌ Sab fields bharein!'); return; }
+
+    if(role==='admin') {
+        // Admin password Firestore mein
+        const snap = await getDoc(doc(db,'settings','admin'));
+        const adminPass = snap.exists() ? snap.data().password : 'admin123';
+        if(uname==='admin' && pass===adminPass) { currentRole='admin'; currentUsername='admin'; loginSuccess(); }
+        else show('login-err');
+        return;
+    }
+
+    if(role==='partner') {
+        const snap = await getDoc(doc(db,'partnerRequests', uname.toLowerCase()));
+        if(!snap.exists() || snap.data().password !== pass) { show('login-err'); return; }
+        const st = snap.data().status;
+        if(st==='pending')  { show('login-pending');  return; }
+        if(st==='rejected') { show('login-rejected'); return; }
+        if(st==='approved') { currentRole='partner'; currentUsername=snap.data().username; loginSuccess(); }
+    }
+}
+window.doLogin = doLogin;
+
+document.getElementById('login-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+function loginSuccess() {
+    hide('auth-screen');
+    show('main-app');
+    document.getElementById('user-display-name').textContent = currentUsername;
+    document.getElementById('role-badge').textContent        = currentRole.toUpperCase();
+    applyAccess();
+    startListeners();
+}
+
+function logout() {
+    currentRole=null; currentUsername=null;
+    unsubscribers.forEach(u=>u()); unsubscribers=[];
+    document.getElementById('login-role').value='';
+    clearF('login-user','login-pass');
+    ['grp-login-user','grp-login-pass','btn-login','login-err','login-pending','login-rejected'].forEach(hide);
+    hide('main-app'); show('auth-screen','flex');
+    switchTab('login');
+}
+window.logout = logout;
+
+// ====== PARTNER APPROVAL ======
+async function approvePartner(username) {
+    await updateDoc(doc(db,'partnerRequests',username.toLowerCase()), { status:'approved' });
+    showToast('✅ ' + username + ' approved!');
+}
+async function rejectPartner(username) {
+    await updateDoc(doc(db,'partnerRequests',username.toLowerCase()), { status:'rejected' });
+    showToast('❌ ' + username + ' rejected.');
+}
+window.approvePartner = approvePartner;
+window.rejectPartner  = rejectPartner;
+
+// ====== ACCESS CONTROL ======
+function applyAccess() {
+    const isAdmin = currentRole==='admin';
+    document.getElementById('requests-panel').style.display = isAdmin?'block':'none';
+    ['card-gross','card-disc','card-cost','card-exp'].forEach(id => {
+        document.getElementById(id).style.display = isAdmin?'':'none';
+    });
+    ['mod-products','mod-expenses'].forEach(id => {
+        document.getElementById(id).style.display = isAdmin?'':'none';
+    });
+    document.getElementById('sales-form-admin').style.display = isAdmin?'':'none';
+    document.getElementById('s-del-th').style.display         = isAdmin?'':'none';
+    document.getElementById('rec-form-admin').style.display   = isAdmin?'':'none';
+    document.getElementById('r-del-th').style.display         = isAdmin?'':'none';
+}
+
+// ====== PASSWORD CHANGE ======
+async function changePassword() {
+    const oldP  = document.getElementById('cp-old').value;
+    const newP  = document.getElementById('cp-new').value;
+    const conf  = document.getElementById('cp-confirm').value;
+    const errEl = document.getElementById('cp-error');
+    errEl.style.display='none';
+
+    if(newP.length<6) { errEl.textContent='❌ Min 6 chars!'; errEl.style.display='block'; return; }
+    if(newP!==conf)   { errEl.textContent='❌ Match nahi!';  errEl.style.display='block'; return; }
+
+    if(currentRole==='admin') {
+        const snap = await getDoc(doc(db,'settings','admin'));
+        const cur  = snap.exists() ? snap.data().password : 'admin123';
+        if(oldP!==cur) { errEl.textContent='❌ Purana password galat!'; errEl.style.display='block'; return; }
+        await setDoc(doc(db,'settings','admin'), { password: newP });
+    } else {
+        const snap = await getDoc(doc(db,'partnerRequests', currentUsername.toLowerCase()));
+        if(!snap.exists()||oldP!==snap.data().password) { errEl.textContent='❌ Purana password galat!'; errEl.style.display='block'; return; }
+        await updateDoc(doc(db,'partnerRequests', currentUsername.toLowerCase()), { password: newP });
+    }
+    closeModal('modal-changepass');
+    clearF('cp-old','cp-new','cp-confirm');
+    showToast('🔑 Password change ho gaya!');
+}
+window.changePassword = changePassword;
+
+// ====== DELETE ======
+function requestDelete(type, id) { deleteTarget={type,id}; openModal('modal-delete'); }
+async function confirmDelete() {
+    if(!deleteTarget) return;
+    const {type,id} = deleteTarget;
+    const colMap = { sale:'sales', expense:'expenses', recovery:'recoveries', product:'products' };
+    await deleteDoc(doc(db, colMap[type], id));
+    deleteTarget=null; closeModal('modal-delete');
+    showToast('🗑️ Delete ho gaya!');
+}
+window.requestDelete = requestDelete;
+window.confirmDelete = confirmDelete;
+
+// ====== DISCOUNT PREVIEW ======
+let productsCache = {};
+function updateDiscPreview() {
+    const pId  = getVal('s-product');
+    const qty  = parseInt(document.getElementById('s-qty').value)||0;
+    const disc = parseFloat(document.getElementById('s-disc').value)||0;
+    const prod = productsCache[pId];
+    const prev = document.getElementById('disc-preview');
+    if(prod&&qty>0&&disc>0) {
+        const g=prod.price*qty, d=g*disc/100, n=g-d;
+        prev.textContent=`Gross: ${g.toLocaleString()} → Disc: ${d.toLocaleString()} → Net: ${n.toLocaleString()}`;
+    } else prev.textContent='';
+}
+window.updateDiscPreview = updateDiscPreview;
+
+// ====== ADD FUNCTIONS ======
+async function addProduct() {
+    const brand=getVal('p-brand'), name=getVal('p-name');
+    const cost=getNum('p-cost'),   price=getNum('p-price');
+    if(!name)    { showToast('❌ Naam likhein!'); return; }
+    if(price<=0) { showToast('❌ Sale price daalen!'); return; }
+    await addDoc(collection(db,'products'), { brand, name, cost, price, date:nowStamp() });
+    clearF('p-name','p-cost','p-price');
+    showToast('✅ Product add ho gaya!');
+}
+window.addProduct = addProduct;
+
+async function addSale() {
+    const pId  = getVal('s-product');
+    const qty  = parseInt(document.getElementById('s-qty').value)||0;
+    const discPct = parseFloat(document.getElementById('s-disc').value)||0;
+    if(!pId)   { showToast('❌ Product select karein!'); return; }
+    if(qty<=0) { showToast('❌ Quantity daalen!'); return; }
+    const prod = productsCache[pId];
+    if(!prod) return;
+    const gross=prod.price*qty, discAmt=gross*discPct/100;
+    await addDoc(collection(db,'sales'), {
+        prodName:`[${prod.brand}] ${prod.name}`, qty,
+        costTotal:prod.cost*qty, grossTotal:gross,
+        discPct, discountAmt:discAmt, netRevenue:gross-discAmt,
+        date:nowStamp()
+    });
+    clearF('s-qty'); document.getElementById('s-disc').value='0';
+    document.getElementById('disc-preview').textContent='';
+    showToast('✅ Sale log ho gai!');
+}
+window.addSale = addSale;
+
+async function addExpense() {
+    const type=getVal('e-type'), amount=getNum('e-amount'), desc=getVal('e-desc');
+    if(amount<=0) { showToast('❌ Amount daalen!'); return; }
+    if(!desc)     { showToast('❌ Details likhein!'); return; }
+    await addDoc(collection(db,'expenses'), { type, amount, desc, date:nowStamp() });
+    clearF('e-amount','e-desc');
+    showToast('✅ Expense record ho gaya!');
+}
+window.addExpense = addExpense;
+
+async function addRecovery() {
+    const desc=getVal('r-desc'), amount=getNum('r-amount');
+    if(!desc)     { showToast('❌ Party naam likhein!'); return; }
+    if(amount<=0) { showToast('❌ Amount daalen!'); return; }
+    await addDoc(collection(db,'recoveries'), { desc, amount, date:nowStamp() });
+    clearF('r-desc','r-amount');
+    showToast('✅ Recovery record ho gai!');
+}
+window.addRecovery = addRecovery;
+
+// ====== REAL-TIME LISTENERS ======
+function startListeners() {
+    const isAdmin = currentRole==='admin';
+
+    // PRODUCTS
+    unsubscribers.push(onSnapshot(collection(db,'products'), snap => {
+        productsCache = {};
+        const listEl = document.getElementById('product-list-view');
+        const dropEl = document.getElementById('s-product');
+        listEl.innerHTML=''; dropEl.innerHTML='';
+        if(snap.empty) {
+            listEl.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div>Koi product nahi</div>';
+            dropEl.innerHTML='<option value="">-- Product add karein --</option>';
+            return;
+        }
+        snap.forEach(d => {
+            const p={id:d.id,...d.data()}; productsCache[d.id]=p;
+            listEl.innerHTML+=`<div class="list-item">
+                <div><span style="color:var(--muted);font-size:11px">[${p.brand}]</span> <b>${p.name}</b><br>
+                <span style="font-size:10px;color:var(--muted)">Cost:${p.cost.toLocaleString()} | Sale:${p.price.toLocaleString()}</span></div>
+                <div>${isAdmin?`<button class="del-btn" onclick="requestDelete('product','${d.id}')">🗑</button>`:''}</div>
+            </div>`;
+            dropEl.innerHTML+=`<option value="${d.id}">[${p.brand}] ${p.name} (${p.price})</option>`;
+        });
+    }));
+
+    // SALES
+    unsubscribers.push(onSnapshot(collection(db,'sales'), snap => {
+        const rows=document.getElementById('sales-rows');
+        rows.innerHTML='';
+        let tG=0,tD=0,tN=0,tC=0;
+        if(snap.empty){ rows.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📈</div>Koi sale nahi</div></td></tr>'; }
+        snap.forEach(d=>{
+            const s=d.data(); tG+=s.grossTotal; tD+=s.discountAmt; tN+=s.netRevenue; tC+=s.costTotal;
+            rows.innerHTML+=`<tr>
+                <td><b>${s.prodName}</b></td><td>${s.qty}</td>
+                <td style="color:#6366f1">${s.grossTotal.toLocaleString()}</td>
+                <td style="color:var(--sky)">${s.discPct}%</td>
+                <td style="color:var(--sky)">-${s.discountAmt.toLocaleString()}</td>
+                <td style="color:var(--brand);font-weight:700">${s.netRevenue.toLocaleString()}</td>
+                <td><span class="date-chip">${s.date||''}</span></td>
+                <td>${isAdmin?`<button class="del-btn" onclick="requestDelete('sale','${d.id}')">🗑</button>`:''}</td></tr>`;
+        });
+        updateSummary({tG,tD,tN,tC});
+    }));
+
+    // EXPENSES
+    unsubscribers.push(onSnapshot(collection(db,'expenses'), snap => {
+        const rows=document.getElementById('exp-rows');
+        rows.innerHTML='';
+        let tE=0;
+        if(snap.empty){ rows.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">💸</div>Koi expense nahi</div></td></tr>'; }
+        snap.forEach(d=>{
+            const e=d.data(); tE+=e.amount;
+            rows.innerHTML+=`<tr>
+                <td><b style="color:var(--danger)">${e.type}</b></td><td>${e.desc}</td>
+                <td>${e.amount.toLocaleString()}</td>
+                <td><span class="date-chip">${e.date||''}</span></td>
+                <td>${isAdmin?`<button class="del-btn" onclick="requestDelete('expense','${d.id}')">🗑</button>`:''}</td></tr>`;
+        });
+        window._tE=tE; recalcPL();
+    }));
+
+    // RECOVERIES
+    unsubscribers.push(onSnapshot(collection(db,'recoveries'), snap => {
+        const rows=document.getElementById('rec-rows');
+        rows.innerHTML='';
+        let tR=0;
+        if(snap.empty){ rows.innerHTML='<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">💰</div>Koi recovery nahi</div></td></tr>'; }
+        snap.forEach(d=>{
+            const r=d.data(); tR+=r.amount;
+            rows.innerHTML+=`<tr>
+                <td><b>${r.desc}</b></td>
+                <td style="color:var(--success)">+${r.amount.toLocaleString()}</td>
+                <td><span class="date-chip">${r.date||''}</span></td>
+                <td>${isAdmin?`<button class="del-btn" onclick="requestDelete('recovery','${d.id}')">🗑</button>`:''}</td></tr>`;
+        });
+        window._tR=tR; recalcPL();
+    }));
+
+    // PARTNER REQUESTS (admin only)
+    if(isAdmin) {
+        unsubscribers.push(onSnapshot(collection(db,'partnerRequests'), snap => {
+            const panel=document.getElementById('requests-list');
+            const badge=document.getElementById('pending-count');
+            if(snap.empty){ panel.innerHTML='<div class="empty-req">📭 Koi request nahi</div>'; hide('pending-count'); return; }
+            let pending=0;
+            const items=[];
+            snap.forEach(d=>{ const r={id:d.id,...d.data()}; if(r.status==='pending') pending++; items.push(r); });
+            items.sort((a,b)=>({pending:0,approved:1,rejected:2}[a.status]-({pending:0,approved:1,rejected:2}[b.status])));
+            if(pending>0){ badge.textContent=pending; show('pending-count','inline-block'); } else hide('pending-count');
+            panel.innerHTML=items.map(r=>{
+                const init=r.username.charAt(0).toUpperCase();
+                const stLabel=r.status==='pending'?'Pending':r.status==='approved'?'Approved ✅':'Rejected ❌';
+                const actions=r.status==='pending'
+                    ?`<button class="btn-success" style="width:auto;padding:5px 12px;font-size:12px" onclick="approvePartner('${r.username}')">✅ Approve</button>
+                      <button class="btn-danger"  style="width:auto;padding:5px 12px;font-size:12px" onclick="rejectPartner('${r.username}')">❌ Reject</button>`
+                    :r.status==='approved'
+                    ?`<button class="btn-danger" style="width:auto;padding:5px 12px;font-size:12px" onclick="rejectPartner('${r.username}')">❌ Revoke</button>`
+                    :`<button class="btn-success" style="width:auto;padding:5px 12px;font-size:12px" onclick="approvePartner('${r.username}')">✅ Re-Approve</button>`;
+                return `<div class="req-item">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <div class="req-avatar">${init}</div>
+                        <div><div class="req-name">@${r.username}</div><div class="req-time">📅 ${r.date||''}</div></div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span class="req-status ${r.status}">${stLabel}</span>
+                        <div style="display:flex;gap:6px">${actions}</div>
+                    </div></div>`;
+            }).join('');
+        }));
+    }
+}
+
+// ====== SUMMARY UPDATER ======
+window._tE=0; window._tR=0; window._tG=0; window._tD=0; window._tN=0; window._tC=0;
+function updateSummary({tG,tD,tN,tC}) {
+    window._tG=tG; window._tD=tD; window._tN=tN; window._tC=tC;
+    document.getElementById('log-gross').textContent = tG.toLocaleString();
+    document.getElementById('log-disc').textContent  = tD.toLocaleString();
+    document.getElementById('log-net').textContent   = tN.toLocaleString();
+    document.getElementById('log-cost').textContent  = tC.toLocaleString();
+    recalcPL();
+}
+function recalcPL() {
+    const tE=window._tE||0, tR=window._tR||0;
+    const tN=window._tN||0, tC=window._tC||0;
+    const credit=Math.max(0,tN-tR);
+    const pl=tN-(tC+tE);
+    document.getElementById('log-exp').textContent    = tE.toLocaleString();
+    document.getElementById('log-rec').textContent    = tR.toLocaleString();
+    document.getElementById('log-credit').textContent = credit.toLocaleString();
+    document.getElementById('log-pl').textContent     = (pl>=0?'+ ':'')+pl.toLocaleString();
+    const plCard=document.getElementById('pl-card'), plTitle=document.getElementById('pl-title'), plVal=document.getElementById('log-pl');
+    if(pl>=0){ plTitle.textContent='⭐ Net Profit'; plCard.className='sum-card profit'; plVal.style.color='var(--success)'; }
+    else     { plTitle.textContent='⚠️ Net Loss';  plCard.className='sum-card loss';   plVal.style.color='var(--danger)'; }
+}
+
+// ====== INIT ======
+hideLoading();
+</script>
+</body>
+</html>
