@@ -324,9 +324,20 @@
                 <div class="form-group"><label>Amount (PKR)</label><input type="number" id="e-amount" placeholder="Raqam" min="0"></div>
                 <div class="form-group"><label>Details</label><input type="text" id="e-desc" placeholder="e.g., Shop kiraya"></div>
                 <button class="btn-success" onclick="addExpense()">📝 Record Karein</button>
-                <div class="data-list">
+                <!-- Admin: full table -->
+                <div id="exp-table-admin" class="data-list">
                     <table><thead><tr><th>Type</th><th>Details</th><th>Amount</th><th>Date</th><th></th></tr></thead>
                     <tbody id="exp-rows"></tbody></table>
+                </div>
+            </div>
+
+            <!-- EXPENSES TOTAL (Partner only) -->
+            <div class="module-box" id="mod-expenses-partner" style="display:none;">
+                <h3>💸 Total Expenses</h3>
+                <div style="background:var(--danger-bg);border:1px solid #fecaca;border-radius:12px;padding:20px;text-align:center;margin-top:8px;">
+                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Kul Kharchay</div>
+                    <div id="partner-exp-total" style="font-size:32px;font-weight:800;color:var(--danger);font-family:'JetBrains Mono',monospace;">0</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:6px;">PKR</div>
                 </div>
             </div>
 
@@ -562,9 +573,9 @@ function applyAccess() {
     ['card-gross','card-disc','card-cost','card-exp'].forEach(id => {
         document.getElementById(id).style.display = isAdmin?'':'none';
     });
-    ['mod-products','mod-expenses'].forEach(id => {
-        document.getElementById(id).style.display = isAdmin?'':'none';
-    });
+    document.getElementById('mod-products').style.display         = isAdmin?'':'none';
+    document.getElementById('mod-expenses').style.display         = isAdmin?'':'none';
+    document.getElementById('mod-expenses-partner').style.display = isAdmin?'none':'';
     document.getElementById('sales-form-admin').style.display = isAdmin?'':'none';
     document.getElementById('s-del-th').style.display         = isAdmin?'':'none';
     document.getElementById('rec-form-admin').style.display   = isAdmin?'':'none';
@@ -739,6 +750,9 @@ function startListeners() {
                 <td><span class="date-chip">${e.date||''}</span></td>
                 <td>${isAdmin?`<button class="del-btn" onclick="requestDelete('expense','${d.id}')">🗑</button>`:''}</td></tr>`;
         });
+        // Partner total update
+        const partnerTotalEl = document.getElementById('partner-exp-total');
+        if(partnerTotalEl) partnerTotalEl.textContent = tE.toLocaleString();
         window._tE=tE; recalcPL();
     }));
 
