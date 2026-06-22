@@ -166,6 +166,33 @@
     </div>
 </div>
 
+<!-- USERNAME CHANGE MODAL (Admin only) -->
+<div class="modal-backdrop" id="modal-changeuser">
+    <div class="modal-box">
+        <h3>✏️ Admin Username Change</h3>
+        <div style="background:var(--warning-bg);border-left:3px solid var(--warning);padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:12px;color:var(--warning);font-weight:600;">
+            ⚠️ Username change karne ke baad aapko naye username se login karna hoga.
+        </div>
+        <div class="form-group">
+            <label>Maujuda Username</label>
+            <input type="text" id="cu-current" readonly style="background:#f1f5f9;color:var(--muted);">
+        </div>
+        <div class="form-group">
+            <label>Naya Username</label>
+            <input type="text" id="cu-new" placeholder="Naya username likhein">
+        </div>
+        <div class="form-group">
+            <label>Password Confirm (Security)</label>
+            <input type="password" id="cu-pass" placeholder="Apna password daalen">
+        </div>
+        <div id="cu-error" style="display:none;color:var(--danger);font-size:12px;font-weight:600;margin-top:8px;"></div>
+        <div class="modal-actions">
+            <button class="btn-ghost" onclick="closeModal('modal-changeuser')">Cancel</button>
+            <button class="btn-success" onclick="changeUsername()">✔ Save</button>
+        </div>
+    </div>
+</div>
+
 <!-- DELETE MODAL -->
 <div class="modal-backdrop" id="modal-delete">
     <div class="modal-box">
@@ -174,6 +201,30 @@
         <div class="modal-actions">
             <button class="btn-ghost" onclick="closeModal('modal-delete')">Cancel</button>
             <button class="btn-danger" onclick="confirmDelete()">Haan, Delete Karo</button>
+        </div>
+    </div>
+</div>
+
+<!-- CLEAR HISTORY MODAL -->
+<div class="modal-backdrop" id="modal-clear">
+    <div class="modal-box">
+        <h3>⚠️ Clear History</h3>
+        <p style="font-size:13px;color:var(--muted);margin:0 0 12px;">Kya clear karna chahte hain?</p>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" id="clr-sales" checked> Sales history
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" id="clr-expenses" checked> Expenses history
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" id="clr-recovery" checked> Recovery history
+            </label>
+        </div>
+        <p style="font-size:12px;color:var(--danger);font-weight:600;margin:0 0 16px;">⚠️ Yeh action undo nahi hoga!</p>
+        <div class="modal-actions">
+            <button class="btn-ghost" onclick="closeModal('modal-clear')">Cancel</button>
+            <button class="btn-danger" onclick="confirmClear()">🗑️ Clear Karo</button>
         </div>
     </div>
 </div>
@@ -187,7 +238,7 @@
         </div>
         <div class="auth-tabs">
             <button class="auth-tab active" onclick="switchTab('login')">🔐 Login</button>
-            <button class="auth-tab" onclick="switchTab('register')">📝 Partner Register</button>
+            <button class="auth-tab" onclick="switchTab('register')">📝 Register</button>
         </div>
         <div class="auth-body">
             <!-- LOGIN -->
@@ -200,6 +251,7 @@
                     <select id="login-role" onchange="onRoleChange()">
                         <option value="">-- Role chunein --</option>
                         <option value="admin">👑 Admin</option>
+                        <option value="coadmin">🛡️ Co-Admin</option>
                         <option value="partner">🤝 Partner</option>
                     </select>
                 </div>
@@ -217,6 +269,13 @@
             <div class="auth-panel" id="panel-register">
                 <div class="alert-box alert-danger"  id="reg-err"></div>
                 <div class="alert-box alert-success" id="reg-success">✅ Request bhej di! Admin approve karega.</div>
+                <div class="form-group">
+                    <label>Account Type</label>
+                    <select id="reg-role">
+                        <option value="partner">🤝 Partner</option>
+                        <option value="coadmin">🛡️ Co-Admin</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label>Username Chunein</label>
                     <input type="text" id="reg-user" placeholder="e.g., ali_partner" oninput="checkUsername()">
@@ -248,6 +307,9 @@
             <div class="header-right">
                 <div class="clock-badge" id="live-clock">--:--:--</div>
                 <div class="user-chip">👤 <span id="user-display-name"></span> <span class="role-badge" id="role-badge">ADMIN</span></div>
+                <button class="btn-hdr" onclick="exportPDF()">📄 Export PDF</button>
+                <button class="btn-hdr" id="btn-clear-history" onclick="openModal('modal-clear')" style="display:none;">🗑️ Clear History</button>
+                <button class="btn-hdr" id="btn-change-user" onclick="openChangeUsername()" style="display:none;">✏️ Username</button>
                 <button class="btn-hdr" onclick="openModal('modal-changepass')">🔑 Password</button>
                 <button class="btn-hdr danger" onclick="logout()">Logout</button>
             </div>
@@ -335,7 +397,7 @@
             <div class="module-box" id="mod-expenses-partner" style="display:none;">
                 <h3>💸 Total Expenses</h3>
                 <div style="background:var(--danger-bg);border:1px solid #fecaca;border-radius:12px;padding:20px;text-align:center;margin-top:8px;">
-                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Kul Kharchay</div>
+                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Total Expenses</div>
                     <div id="partner-exp-total" style="font-size:32px;font-weight:800;color:var(--danger);font-family:'JetBrains Mono',monospace;">0</div>
                     <div style="font-size:11px;color:var(--muted);margin-top:6px;">PKR</div>
                 </div>
@@ -362,7 +424,7 @@
 import { initializeApp }                          from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc,
          collection, addDoc, onSnapshot,
-         deleteDoc, updateDoc, query, orderBy }   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+         deleteDoc, updateDoc, getDocs, query, orderBy }   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 // ====== FIREBASE CONFIG ======
 const firebaseConfig = {
@@ -458,10 +520,11 @@ window.checkPassStrength = checkPassStrength;
 // ====== REGISTER ======
 async function doRegister() {
     hide('reg-err'); hide('reg-success');
-    const uname   = getVal('reg-user');
-    const pass    = document.getElementById('reg-pass').value;
-    const confirm = document.getElementById('reg-confirm').value;
-    const errEl   = document.getElementById('reg-err');
+    const roleType = getVal('reg-role');
+    const uname    = getVal('reg-user');
+    const pass     = document.getElementById('reg-pass').value;
+    const confirm  = document.getElementById('reg-confirm').value;
+    const errEl    = document.getElementById('reg-err');
     function err(msg){ errEl.textContent=msg; show('reg-err'); }
 
     if(!uname)            { err('❌ Username likhein!'); return; }
@@ -476,6 +539,7 @@ async function doRegister() {
 
     await setDoc(doc(db,'partnerRequests', uname.toLowerCase()), {
         username: uname, password: pass,
+        roleType: roleType,
         status: 'pending', date: nowStamp()
     });
     show('reg-success');
@@ -493,11 +557,15 @@ function onRoleChange() {
     ['grp-login-user','grp-login-pass','btn-login'].forEach(hide);
     clearF('login-user','login-pass');
     if(role==='admin') {
-        document.getElementById('login-user').value    = 'admin';
+        // Fetch current admin username from Firestore
+        getDoc(doc(db,'settings','admin')).then(snap => {
+            const savedUser = snap.exists() && snap.data().username ? snap.data().username : 'admin';
+            document.getElementById('login-user').value    = savedUser;
+        });
         document.getElementById('login-user').readOnly = true;
         document.getElementById('login-user').style.background='#f1f5f9';
         show('grp-login-user'); show('grp-login-pass'); show('btn-login');
-    } else if(role==='partner') {
+    } else if(role==='partner' || role==='coadmin') {
         document.getElementById('login-user').readOnly = false;
         document.getElementById('login-user').style.background='';
         show('grp-login-user'); show('grp-login-pass'); show('btn-login');
@@ -513,21 +581,24 @@ async function doLogin() {
     if(!role||!uname||!pass) { showToast('❌ Sab fields bharein!'); return; }
 
     if(role==='admin') {
-        // Admin password Firestore mein
         const snap = await getDoc(doc(db,'settings','admin'));
         const adminPass = snap.exists() ? snap.data().password : 'admin123';
-        if(uname==='admin' && pass===adminPass) { currentRole='admin'; currentUsername='admin'; loginSuccess(); }
+        const adminUser = snap.exists() && snap.data().username ? snap.data().username : 'admin';
+        if(uname===adminUser && pass===adminPass) { currentRole='admin'; currentUsername=adminUser; loginSuccess(); }
         else show('login-err');
         return;
     }
 
-    if(role==='partner') {
+    if(role==='partner' || role==='coadmin') {
         const snap = await getDoc(doc(db,'partnerRequests', uname.toLowerCase()));
         if(!snap.exists() || snap.data().password !== pass) { show('login-err'); return; }
-        const st = snap.data().status;
+        const data = snap.data();
+        // Make sure role matches
+        if(data.roleType !== role) { show('login-err'); return; }
+        const st = data.status;
         if(st==='pending')  { show('login-pending');  return; }
         if(st==='rejected') { show('login-rejected'); return; }
-        if(st==='approved') { currentRole='partner'; currentUsername=snap.data().username; loginSuccess(); }
+        if(st==='approved') { currentRole=role; currentUsername=data.username; loginSuccess(); }
     }
 }
 window.doLogin = doLogin;
@@ -538,7 +609,10 @@ function loginSuccess() {
     hide('auth-screen');
     show('main-app');
     document.getElementById('user-display-name').textContent = currentUsername;
-    document.getElementById('role-badge').textContent        = currentRole.toUpperCase();
+    const badge = document.getElementById('role-badge');
+    if(currentRole==='admin')   { badge.textContent='ADMIN';    badge.style.background='var(--brand2)'; }
+    if(currentRole==='coadmin') { badge.textContent='CO-ADMIN'; badge.style.background='#7c3aed'; }
+    if(currentRole==='partner') { badge.textContent='PARTNER';  badge.style.background='var(--success)'; }
     applyAccess();
     startListeners();
 }
@@ -568,18 +642,47 @@ window.rejectPartner  = rejectPartner;
 
 // ====== ACCESS CONTROL ======
 function applyAccess() {
-    const isAdmin = currentRole==='admin';
-    document.getElementById('requests-panel').style.display = isAdmin?'block':'none';
+    const isAdmin   = currentRole==='admin';
+    const isCoAdmin = currentRole==='coadmin';
+    const isPartner = currentRole==='partner';
+    const canSeeAll = isAdmin || isCoAdmin;   // sees all sections
+    const canEdit   = isAdmin;                // only admin can add/delete/clear
+
+    // Header buttons
+    document.getElementById('requests-panel').style.display = canSeeAll?'block':'none';
+    const clearBtn = document.getElementById('btn-clear-history');
+    if(clearBtn) clearBtn.style.display = isAdmin?'':'none';
+    const userBtn = document.getElementById('btn-change-user');
+    if(userBtn) userBtn.style.display = isAdmin?'':'none';
+
+    // Summary cards — partner can't see cost/expenses/gross/discount
     ['card-gross','card-disc','card-cost','card-exp'].forEach(id => {
-        document.getElementById(id).style.display = isAdmin?'':'none';
+        document.getElementById(id).style.display = canSeeAll?'':'none';
     });
-    document.getElementById('mod-products').style.display         = isAdmin?'':'none';
-    document.getElementById('mod-expenses').style.display         = isAdmin?'':'none';
-    document.getElementById('mod-expenses-partner').style.display = isAdmin?'none':'';
-    document.getElementById('sales-form-admin').style.display = isAdmin?'':'none';
-    document.getElementById('s-del-th').style.display         = isAdmin?'':'none';
-    document.getElementById('rec-form-admin').style.display   = isAdmin?'':'none';
-    document.getElementById('r-del-th').style.display         = isAdmin?'':'none';
+
+    // Modules
+    document.getElementById('mod-products').style.display         = canSeeAll?'':'none';
+    document.getElementById('mod-expenses').style.display         = canSeeAll?'':'none';
+    document.getElementById('mod-expenses-partner').style.display = isPartner?'':'none';
+
+    // Sales form & delete — co-admin read only
+    document.getElementById('sales-form-admin').style.display = canEdit?'':'none';
+    document.getElementById('s-del-th').style.display         = canEdit?'':'none';
+
+    // Recovery form & delete
+    document.getElementById('rec-form-admin').style.display   = canEdit?'':'none';
+    document.getElementById('r-del-th').style.display         = canEdit?'':'none';
+
+    // Product add button & expense add button (inside mod-products & mod-expenses)
+    // These modules are hidden for partner, so just disable add buttons for co-admin
+    if(isCoAdmin) {
+        document.querySelectorAll('#mod-products button, #mod-expenses button').forEach(b => {
+            b.disabled = true;
+            b.title = 'Co-Admin sirf dekh sakta hai';
+        });
+        // Also hide delete buttons in expense table
+        document.querySelectorAll('.del-btn').forEach(b => b.style.display='none');
+    }
 }
 
 // ====== PASSWORD CHANGE ======
@@ -599,6 +702,7 @@ async function changePassword() {
         if(oldP!==cur) { errEl.textContent='❌ Purana password galat!'; errEl.style.display='block'; return; }
         await setDoc(doc(db,'settings','admin'), { password: newP });
     } else {
+        // partner or co-admin
         const snap = await getDoc(doc(db,'partnerRequests', currentUsername.toLowerCase()));
         if(!snap.exists()||oldP!==snap.data().password) { errEl.textContent='❌ Purana password galat!'; errEl.style.display='block'; return; }
         await updateDoc(doc(db,'partnerRequests', currentUsername.toLowerCase()), { password: newP });
@@ -608,6 +712,43 @@ async function changePassword() {
     showToast('🔑 Password change ho gaya!');
 }
 window.changePassword = changePassword;
+
+// ====== USERNAME CHANGE (Admin only) ======
+function openChangeUsername() {
+    document.getElementById('cu-current').value = currentUsername;
+    document.getElementById('cu-new').value     = '';
+    document.getElementById('cu-pass').value    = '';
+    document.getElementById('cu-error').style.display = 'none';
+    openModal('modal-changeuser');
+}
+window.openChangeUsername = openChangeUsername;
+
+async function changeUsername() {
+    const newName = document.getElementById('cu-new').value.trim();
+    const pass    = document.getElementById('cu-pass').value;
+    const errEl   = document.getElementById('cu-error');
+    errEl.style.display = 'none';
+
+    if(!newName)          { errEl.textContent='❌ Naya username likhein!'; errEl.style.display='block'; return; }
+    if(newName.length<3)  { errEl.textContent='❌ Min 3 characters!'; errEl.style.display='block'; return; }
+    if(!/^[a-zA-Z0-9_]+$/.test(newName)) { errEl.textContent='❌ Sirf letters, numbers, _ allowed!'; errEl.style.display='block'; return; }
+    if(newName === currentUsername) { errEl.textContent='❌ Yeh pehle se apna username hai!'; errEl.style.display='block'; return; }
+
+    // Verify password
+    const snap = await getDoc(doc(db,'settings','admin'));
+    const adminPass = snap.exists() ? snap.data().password : 'admin123';
+    if(pass !== adminPass) { errEl.textContent='❌ Password galat hai!'; errEl.style.display='block'; return; }
+
+    // Save new username in Firestore
+    await setDoc(doc(db,'settings','admin'), { password: adminPass, username: newName });
+
+    // Update UI
+    currentUsername = newName;
+    document.getElementById('user-display-name').textContent = newName;
+    closeModal('modal-changeuser');
+    showToast('✅ Username change ho gaya: ' + newName);
+}
+window.changeUsername = changeUsername;
 
 // ====== DELETE ======
 function requestDelete(type, id) { deleteTarget={type,id}; openModal('modal-delete'); }
@@ -787,6 +928,7 @@ function startListeners() {
             panel.innerHTML=items.map(r=>{
                 const init=r.username.charAt(0).toUpperCase();
                 const stLabel=r.status==='pending'?'Pending':r.status==='approved'?'Approved ✅':'Rejected ❌';
+                const roleLabel = r.roleType==='coadmin' ? '🛡️ Co-Admin' : '🤝 Partner';
                 const actions=r.status==='pending'
                     ?`<button class="btn-success" style="width:auto;padding:5px 12px;font-size:12px" onclick="approvePartner('${r.username}')">✅ Approve</button>
                       <button class="btn-danger"  style="width:auto;padding:5px 12px;font-size:12px" onclick="rejectPartner('${r.username}')">❌ Reject</button>`
@@ -796,7 +938,7 @@ function startListeners() {
                 return `<div class="req-item">
                     <div style="display:flex;align-items:center;gap:10px">
                         <div class="req-avatar">${init}</div>
-                        <div><div class="req-name">@${r.username}</div><div class="req-time">📅 ${r.date||''}</div></div>
+                        <div><div class="req-name">@${r.username} <span style="font-size:10px;background:#f1f5f9;padding:2px 7px;border-radius:10px;color:var(--muted);font-weight:600;">${roleLabel}</span></div><div class="req-time">📅 ${r.date||''}</div></div>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                         <span class="req-status ${r.status}">${stLabel}</span>
@@ -830,6 +972,143 @@ function recalcPL() {
     if(pl>=0){ plTitle.textContent='⭐ Net Profit'; plCard.className='sum-card profit'; plVal.style.color='var(--success)'; }
     else     { plTitle.textContent='⚠️ Net Loss';  plCard.className='sum-card loss';   plVal.style.color='var(--danger)'; }
 }
+
+// ====== EXPORT PDF ======
+function exportPDF() {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'});
+    const tG=window._tG||0, tD=window._tD||0, tN=window._tN||0;
+    const tC=window._tC||0, tE=window._tE||0, tR=window._tR||0;
+    const credit=Math.max(0,tN-tR), pl=tN-(tC+tE);
+    const plColor = pl>=0 ? '#059669' : '#dc2626';
+    const plLabel = pl>=0 ? 'Net Profit' : 'Net Loss';
+
+    // Build sales rows
+    const sRows = document.getElementById('sales-rows');
+    let salesHTML = '';
+    if(sRows) {
+        Array.from(sRows.querySelectorAll('tr')).forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            if(tds.length >= 6) {
+                salesHTML += `<tr>
+                    <td>${tds[0].textContent}</td>
+                    <td>${tds[1].textContent}</td>
+                    <td>${tds[2].textContent}</td>
+                    <td>${tds[3].textContent}</td>
+                    <td>${tds[4].textContent}</td>
+                    <td><b>${tds[5].textContent}</b></td>
+                    <td style="font-size:10px;color:#64748b">${tds[6]?tds[6].textContent:''}</td>
+                </tr>`;
+            }
+        });
+    }
+
+    // Build expense rows (admin only)
+    const eRows = document.getElementById('exp-rows');
+    let expHTML = '';
+    if(eRows && currentRole==='admin') {
+        Array.from(eRows.querySelectorAll('tr')).forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            if(tds.length >= 3) {
+                expHTML += `<tr><td>${tds[0].textContent}</td><td>${tds[1].textContent}</td><td><b>${tds[2].textContent}</b></td><td style="font-size:10px;color:#64748b">${tds[3]?tds[3].textContent:''}</td></tr>`;
+            }
+        });
+    }
+
+    // Build recovery rows
+    const rRows = document.getElementById('rec-rows');
+    let recHTML = '';
+    if(rRows) {
+        Array.from(rRows.querySelectorAll('tr')).forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            if(tds.length >= 2) {
+                recHTML += `<tr><td>${tds[0].textContent}</td><td style="color:#059669"><b>${tds[1].textContent}</b></td><td style="font-size:10px;color:#64748b">${tds[2]?tds[2].textContent:''}</td></tr>`;
+            }
+        });
+    }
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>MS Traders - ERP Report</title>
+    <style>
+        body{font-family:Arial,sans-serif;padding:30px;color:#1e293b;font-size:13px;}
+        h1{font-size:22px;font-weight:800;letter-spacing:2px;color:#0f172a;margin:0;}
+        .sub{font-size:11px;color:#64748b;margin-bottom:24px;}
+        .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
+        .scard{background:#f8fafc;border-radius:8px;padding:14px;border-top:3px solid #cbd5e1;}
+        .scard.green{border-top-color:#059669;background:#ecfdf5;}
+        .scard.red{border-top-color:#dc2626;background:#fef2f2;}
+        .scard.blue{border-top-color:#1e40af;}
+        .scard.purple{border-top-color:#6366f1;}
+        .scard .t{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;}
+        .scard .v{font-size:18px;font-weight:800;margin-top:4px;}
+        h2{font-size:14px;font-weight:700;margin:20px 0 10px;padding-bottom:6px;border-bottom:2px solid #e2e8f0;}
+        table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px;}
+        th{background:#f1f5f9;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b;}
+        td{padding:7px 10px;border-bottom:1px solid #e2e8f0;}
+        .footer{margin-top:30px;text-align:center;font-size:11px;color:#94a3b8;}
+        @media print{body{padding:15px;}}
+    </style></head><body>
+    <h1>MS TRADERS</h1>
+    <div class="sub">ERP Financial Report — Generated: ${dateStr} | By: ${currentUsername}</div>
+
+    <div class="summary">
+        <div class="scard purple"><div class="t">Gross Sale</div><div class="v" style="color:#6366f1">PKR ${tG.toLocaleString()}</div></div>
+        <div class="scard blue"><div class="t">Net Sale</div><div class="v" style="color:#1e40af">PKR ${tN.toLocaleString()}</div></div>
+        <div class="scard"><div class="t">Total Discount</div><div class="v" style="color:#0284c7">PKR ${tD.toLocaleString()}</div></div>
+        ${currentRole==='admin'?`<div class="scard"><div class="t">Product Cost</div><div class="v">PKR ${tC.toLocaleString()}</div></div>`:''}
+        ${currentRole==='admin'?`<div class="scard red"><div class="t">Expenses</div><div class="v" style="color:#dc2626">PKR ${tE.toLocaleString()}</div></div>`:''}
+        <div class="scard green"><div class="t">Cash Recovery</div><div class="v" style="color:#059669">PKR ${tR.toLocaleString()}</div></div>
+        <div class="scard"><div class="t">Market Credit</div><div class="v" style="color:#d97706">PKR ${credit.toLocaleString()}</div></div>
+        <div class="scard ${pl>=0?'green':'red'}"><div class="t">${plLabel}</div><div class="v" style="color:${plColor}">PKR ${Math.abs(pl).toLocaleString()}</div></div>
+    </div>
+
+    <h2>📈 Sales Record</h2>
+    <table><thead><tr><th>Product</th><th>Qty</th><th>Gross</th><th>Disc%</th><th>Disc Amt</th><th>Net Sale</th><th>Date</th></tr></thead>
+    <tbody>${salesHTML||'<tr><td colspan="7" style="text-align:center;color:#94a3b8">Koi record nahi</td></tr>'}</tbody></table>
+
+    ${currentRole==='admin'?`<h2>💸 Expenses Record</h2>
+    <table><thead><tr><th>Type</th><th>Details</th><th>Amount</th><th>Date</th></tr></thead>
+    <tbody>${expHTML||'<tr><td colspan="4" style="text-align:center;color:#94a3b8">Koi record nahi</td></tr>'}</tbody></table>`:''}
+
+    <h2>💰 Recovery Record</h2>
+    <table><thead><tr><th>Party</th><th>Amount</th><th>Date</th></tr></thead>
+    <tbody>${recHTML||'<tr><td colspan="3" style="text-align:center;color:#94a3b8">Koi record nahi</td></tr>'}</tbody></table>
+
+    <div class="footer">MS Traders ERP System — ${dateStr}</div>
+    <script>window.onload=()=>window.print();<\/script>
+    </body></html>`;
+
+    const win = window.open('','_blank');
+    win.document.write(html);
+    win.document.close();
+}
+window.exportPDF = exportPDF;
+
+// ====== CLEAR HISTORY ======
+async function confirmClear() {
+    const clearSales    = document.getElementById('clr-sales').checked;
+    const clearExpenses = document.getElementById('clr-expenses').checked;
+    const clearRecovery = document.getElementById('clr-recovery').checked;
+
+    if(!clearSales && !clearExpenses && !clearRecovery) {
+        showToast('❌ Kuch select nahi kiya!'); return;
+    }
+
+    const deleteAll = async (colName) => {
+        const snap = await getDocs(collection(db, colName));
+        const promises = [];
+        snap.forEach(d => promises.push(deleteDoc(doc(db, colName, d.id))));
+        await Promise.all(promises);
+    };
+
+    if(clearSales)    await deleteAll('sales');
+    if(clearExpenses) await deleteAll('expenses');
+    if(clearRecovery) await deleteAll('recoveries');
+
+    closeModal('modal-clear');
+    showToast('✅ History clear ho gayi!');
+}
+window.confirmClear = confirmClear;
 
 // ====== INIT ======
 hideLoading();
