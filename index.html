@@ -1,1117 +1,1964 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MS TRADERS - ERP Dashboard</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
-        :root {
-            --brand:#1e40af; --brand2:#3b82f6;
-            --success:#059669; --success-bg:#ecfdf5;
-            --danger:#dc2626;  --danger-bg:#fef2f2;
-            --warning:#d97706; --warning-bg:#fffbeb;
-            --sky:#0284c7;
-            --bg:#f0f4f8; --card:#ffffff;
-            --border:#e2e8f0; --text:#1e293b; --muted:#64748b;
-            --primary:#0f172a; --radius:14px;
-        }
-        * { box-sizing:border-box; }
-        body { font-family:'Inter',sans-serif; background:var(--bg); margin:0; padding:0; color:var(--text); min-height:100vh; }
-
-        #loading-screen { position:fixed; inset:0; background:linear-gradient(135deg,#0f172a,#1e40af); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; color:white; }
-        #loading-screen .logo { font-size:32px; font-weight:800; letter-spacing:4px; margin-bottom:12px; }
-        #loading-screen .sub  { font-size:12px; opacity:0.6; letter-spacing:2px; text-transform:uppercase; margin-bottom:32px; }
-        .spinner { width:36px; height:36px; border:3px solid rgba(255,255,255,0.2); border-top-color:white; border-radius:50%; animation:spin 0.8s linear infinite; }
-        @keyframes spin { to{ transform:rotate(360deg); } }
-
-        #toast { position:fixed; bottom:24px; right:24px; z-index:9999; background:#1e293b; color:white; padding:12px 20px; border-radius:10px; font-size:13px; font-weight:600; opacity:0; transition:opacity 0.3s; pointer-events:none; max-width:320px; }
-        #toast.show { opacity:1; }
-
-        .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000; padding:16px; }
-        .modal-backdrop.open { display:flex; }
-        .modal-box { background:white; border-radius:16px; padding:28px; width:100%; max-width:440px; box-shadow:0 20px 60px rgba(0,0,0,0.2); animation:popIn 0.2s ease; }
-        @keyframes popIn { from{transform:scale(0.92);opacity:0} to{transform:scale(1);opacity:1} }
-        .modal-box h3 { margin:0 0 18px; font-size:16px; color:var(--primary); }
-        .modal-actions { display:flex; gap:10px; margin-top:16px; }
-        .modal-actions button { flex:1; }
-
-        #auth-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
-        .auth-card { background:var(--card); border-radius:20px; box-shadow:0 12px 40px rgba(15,23,42,0.12); overflow:hidden; width:100%; max-width:420px; }
-        .auth-top { background:linear-gradient(135deg,#0f172a 0%,#1e40af 100%); padding:32px 28px 24px; text-align:center; color:white; }
-        .auth-logo { font-size:28px; font-weight:800; letter-spacing:3px; }
-        .auth-sub  { font-size:11px; opacity:0.7; margin-top:4px; letter-spacing:1px; text-transform:uppercase; }
-        .auth-tabs { display:flex; border-bottom:2px solid var(--border); }
-        .auth-tab  { flex:1; padding:14px; text-align:center; font-size:13px; font-weight:700; color:var(--muted); cursor:pointer; background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; transition:all 0.2s; }
-        .auth-tab.active { color:var(--brand); border-bottom-color:var(--brand); }
-        .auth-body { padding:24px 28px 28px; }
-        .auth-panel { display:none; }
-        .auth-panel.active { display:block; }
-        .alert-box { display:none; font-size:13px; font-weight:600; padding:10px 14px; border-radius:8px; margin-bottom:14px; }
-        .alert-danger  { background:var(--danger-bg);  color:var(--danger);  border-left:3px solid var(--danger); }
-        .alert-warning { background:var(--warning-bg); color:var(--warning); border-left:3px solid var(--warning); }
-        .alert-success { background:var(--success-bg); color:var(--success); border-left:3px solid var(--success); }
-
-        #main-app { display:none; }
-        .app-wrap { max-width:1440px; margin:0 auto; padding:20px; }
-
-        .app-header { background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%); border-radius:var(--radius); color:white; padding:20px 28px; display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; box-shadow:0 8px 24px rgba(15,23,42,0.18); flex-wrap:wrap; gap:12px; }
-        .brand-name { font-size:24px; font-weight:800; letter-spacing:2px; }
-        .brand-sub  { font-size:10px; opacity:0.65; letter-spacing:1px; text-transform:uppercase; margin-top:2px; }
-        .header-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-        .clock-badge { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:6px 12px; font-size:12px; font-family:'JetBrains Mono',monospace; }
-        .user-chip { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:6px; }
-        .role-badge { background:var(--brand2); color:white; font-size:9px; font-weight:700; padding:2px 7px; border-radius:4px; }
-        .btn-hdr { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2); color:white; padding:6px 14px; border-radius:7px; font-size:12px; font-weight:600; cursor:pointer; width:auto; font-family:'Inter',sans-serif; transition:background 0.2s; }
-        .btn-hdr:hover { background:rgba(255,255,255,0.22); }
-        .btn-hdr.danger { background:rgba(220,38,38,0.5); }
-        .btn-hdr.danger:hover { background:var(--danger); }
-
-        .requests-panel { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
-        .requests-panel h3 { margin:0 0 14px; font-size:13px; font-weight:700; color:var(--primary); border-bottom:2px solid var(--bg); padding-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
-        .badge-count { background:var(--warning); color:white; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; }
-        .req-item { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-radius:10px; margin-bottom:8px; border:1px solid var(--border); background:#fafafa; gap:10px; flex-wrap:wrap; }
-        .req-item:last-child { margin-bottom:0; }
-        .req-avatar { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,var(--brand),var(--brand2)); color:white; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; flex-shrink:0; }
-        .req-name { font-size:13px; font-weight:700; color:var(--primary); }
-        .req-time { font-size:11px; color:var(--muted); }
-        .req-status { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
-        .req-status.pending  { background:var(--warning-bg); color:var(--warning); }
-        .req-status.approved { background:var(--success-bg); color:var(--success); }
-        .req-status.rejected { background:var(--danger-bg);  color:var(--danger); }
-        .req-actions { display:flex; gap:6px; }
-        .req-actions button { width:auto; padding:5px 14px; font-size:12px; border-radius:6px; }
-        .empty-req { text-align:center; padding:20px; color:var(--muted); font-size:13px; }
-
-        .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:14px; margin-bottom:24px; }
-        .sum-card { background:var(--card); padding:18px 16px; border-radius:var(--radius); box-shadow:0 2px 8px rgba(0,0,0,0.05); border-top:4px solid #cbd5e1; transition:transform 0.2s,box-shadow 0.2s; }
-        .sum-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.08); }
-        .sum-card.gross   { border-top-color:#6366f1; }
-        .sum-card.netsale { border-top-color:var(--brand); }
-        .sum-card.cost    { border-top-color:var(--muted); }
-        .sum-card.expenses{ border-top-color:var(--danger); }
-        .sum-card.discount{ border-top-color:var(--sky); }
-        .sum-card.recovery{ border-top-color:var(--success); }
-        .sum-card.credit  { border-top-color:var(--warning); }
-        .sum-card.profit  { border-top-color:var(--success); background:var(--success-bg); }
-        .sum-card.loss    { border-top-color:var(--danger);  background:var(--danger-bg); }
-        .sum-title { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; }
-        .sum-val   { font-size:19px; font-weight:800; margin-top:6px; font-family:'JetBrains Mono',monospace; }
-
-        .module-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; margin-bottom:24px; }
-        .module-box { background:var(--card); padding:22px; border-radius:var(--radius); box-shadow:0 2px 8px rgba(0,0,0,0.05); border:1px solid var(--border); }
-        .module-box h3 { margin:0 0 16px; font-size:13px; font-weight:700; color:var(--primary); border-bottom:2px solid var(--bg); padding-bottom:10px; }
-
-        .form-group { margin-bottom:11px; }
-        .form-group label { display:block; font-size:11px; font-weight:600; margin-bottom:4px; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; }
-        .form-group input, .form-group select { width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; background:#f8fafc; outline:none; font-family:'Inter',sans-serif; transition:border-color 0.2s,background 0.2s; }
-        .form-group input:focus, .form-group select:focus { border-color:var(--brand); background:white; }
-        .input-suffix-wrap { position:relative; }
-        .input-suffix-wrap input { padding-right:38px; }
-        .input-suffix { position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:13px; font-weight:700; color:var(--muted); pointer-events:none; }
-        .discount-preview { font-size:11px; color:var(--sky); font-weight:600; margin-top:4px; min-height:16px; }
-        .pass-strength { font-size:11px; margin-top:4px; font-weight:600; min-height:16px; }
-
-        button { width:100%; padding:10px; background:var(--brand); color:white; border:none; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.2s; }
-        button:hover:not(:disabled) { filter:brightness(1.1); transform:translateY(-1px); }
-        button:active { transform:translateY(0); }
-        button.btn-success { background:var(--success); }
-        button.btn-danger  { background:var(--danger); }
-        button.btn-ghost   { background:transparent; color:var(--muted); border:1.5px solid var(--border); }
-        button.btn-ghost:hover:not(:disabled) { background:var(--bg); color:var(--text); filter:none; }
-        button:disabled { background:#cbd5e1 !important; cursor:not-allowed; transform:none !important; filter:none !important; }
-
-        .data-list { max-height:210px; overflow-y:auto; margin-top:12px; border:1px solid var(--border); border-radius:8px; }
-        table { width:100%; border-collapse:collapse; font-size:12px; }
-        th,td { padding:8px 10px; text-align:left; border-bottom:1px solid var(--border); }
-        th { background:#f8fafc; color:var(--muted); font-weight:700; font-size:11px; text-transform:uppercase; position:sticky; top:0; z-index:1; }
-        tr:last-child td { border-bottom:none; }
-        tr:hover td { background:#f8fafc; }
-        .del-btn { width:auto; padding:3px 8px; background:transparent; color:var(--danger); border:1px solid #fecaca; border-radius:5px; font-size:11px; cursor:pointer; }
-        .del-btn:hover { background:var(--danger); color:white; border-color:var(--danger); transform:none; }
-        .date-chip { font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; background:var(--bg); padding:2px 6px; border-radius:4px; white-space:nowrap; }
-        .list-item { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; border-bottom:1px solid var(--border); font-size:12px; }
-        .list-item:last-child { border-bottom:none; }
-        .list-item:hover { background:#f8fafc; }
-        .empty-state { text-align:center; padding:20px; color:var(--muted); font-size:12px; }
-        .empty-icon  { font-size:26px; margin-bottom:6px; }
-        ::-webkit-scrollbar { width:4px; height:4px; }
-        ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
-        @media(max-width:640px){ .app-header{flex-direction:column;align-items:flex-start;} .summary-grid{grid-template-columns:repeat(2,1fr);} }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MS TRADERS - ERP</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
+:root{
+  --brand:#1e40af;--brand2:#3b82f6;
+  --success:#059669;--success-bg:#ecfdf5;
+  --danger:#dc2626;--danger-bg:#fef2f2;
+  --warning:#d97706;--warning-bg:#fffbeb;
+  --sky:#0284c7;--purple:#7c3aed;
+  --bg:#f0f4f8;--card:#fff;--border:#e2e8f0;
+  --text:#1e293b;--muted:#64748b;--primary:#0f172a;--radius:14px;
+}
+*{box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:var(--bg);margin:0;color:var(--text);min-height:100vh;}
+#loading-screen{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a,#1e40af);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:white;}
+.logo-txt{font-size:32px;font-weight:800;letter-spacing:4px;margin-bottom:8px;}
+.logo-sub{font-size:11px;opacity:.6;letter-spacing:2px;text-transform:uppercase;margin-bottom:28px;}
+.spinner{width:34px;height:34px;border:3px solid rgba(255,255,255,.2);border-top-color:white;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;background:#1e293b;color:white;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;max-width:320px;}
+#toast.show{opacity:1;}
+.notif-bell{position:fixed;top:20px;right:20px;z-index:500;display:none;}
+.notif-dot{position:absolute;top:-3px;right:-3px;width:10px;height:10px;background:var(--danger);border-radius:50%;border:2px solid white;}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px;overflow-y:auto;}
+.modal-backdrop.open{display:flex;}
+.modal-box{background:white;border-radius:16px;padding:28px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:popIn .2s ease;margin:auto;}
+.modal-box.wide{max-width:640px;}
+@keyframes popIn{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-box h3{margin:0 0 16px;font-size:16px;color:var(--primary);}
+.modal-actions{display:flex;gap:10px;margin-top:16px;}
+.modal-actions button{flex:1;}
+#auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.auth-card{background:var(--card);border-radius:20px;box-shadow:0 12px 40px rgba(15,23,42,.12);overflow:hidden;width:100%;max-width:420px;}
+.auth-top{background:linear-gradient(135deg,#0f172a,#1e40af);padding:32px 28px 24px;text-align:center;color:white;}
+.auth-logo{font-size:28px;font-weight:800;letter-spacing:3px;}
+.auth-sub{font-size:11px;opacity:.7;margin-top:4px;letter-spacing:1px;text-transform:uppercase;}
+.auth-tabs{display:flex;border-bottom:2px solid var(--border);}
+.auth-tab{flex:1;padding:14px;text-align:center;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;background:none;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;}
+.auth-tab.active{color:var(--brand);border-bottom-color:var(--brand);}
+.auth-body{padding:24px 28px 28px;}
+.auth-panel{display:none;}.auth-panel.active{display:block;}
+.alert-box{display:none;font-size:13px;font-weight:600;padding:10px 14px;border-radius:8px;margin-bottom:14px;}
+.alert-danger{background:var(--danger-bg);color:var(--danger);border-left:3px solid var(--danger);}
+.alert-warning{background:var(--warning-bg);color:var(--warning);border-left:3px solid var(--warning);}
+.alert-success{background:var(--success-bg);color:var(--success);border-left:3px solid var(--success);}
+#main-app{display:none;}
+.app-wrap{max-width:1440px;margin:0 auto;padding:20px;}
+.app-header{background:linear-gradient(135deg,#0f172a,#1e3a8a);border-radius:var(--radius);color:white;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;box-shadow:0 8px 24px rgba(15,23,42,.18);flex-wrap:wrap;gap:10px;}
+.brand-name{font-size:22px;font-weight:800;letter-spacing:2px;}
+.brand-sub{font-size:10px;opacity:.65;letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
+.header-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.clock-badge{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px 10px;font-size:11px;font-family:'JetBrains Mono',monospace;}
+.user-chip{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;}
+.role-badge{color:white;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--brand2);}
+.btn-hdr{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:white;padding:5px 12px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;width:auto;font-family:'Inter',sans-serif;transition:background .2s;white-space:nowrap;}
+.btn-hdr:hover{background:rgba(255,255,255,.22);}
+.btn-hdr.danger{background:rgba(220,38,38,.5);}.btn-hdr.danger:hover{background:var(--danger);}
+.notif-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.notif-panel h3{margin:0 0 12px;font-size:13px;font-weight:700;color:var(--primary);display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--bg);padding-bottom:8px;}
+.notif-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.notif-item:last-child{border-bottom:none;}
+.notif-icon{font-size:18px;flex-shrink:0;}
+.notif-txt{flex:1;}.notif-txt b{display:block;font-size:12px;color:var(--primary);}
+.notif-txt span{color:var(--muted);font-size:11px;}
+.notif-unread{background:#eff6ff;}
+.req-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.req-panel h3{margin:0 0 12px;font-size:13px;font-weight:700;color:var(--primary);border-bottom:2px solid var(--bg);padding-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+.badge-count{background:var(--warning);color:white;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.req-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;margin-bottom:6px;border:1px solid var(--border);background:#fafafa;gap:8px;flex-wrap:wrap;}
+.req-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand2));color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;}
+.req-name{font-size:13px;font-weight:700;color:var(--primary);}
+.req-time{font-size:11px;color:var(--muted);}
+.req-status{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.req-status.pending{background:var(--warning-bg);color:var(--warning);}
+.req-status.approved{background:var(--success-bg);color:var(--success);}
+.req-status.rejected{background:var(--danger-bg);color:var(--danger);}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin-bottom:20px;}
+.sum-card{background:var(--card);padding:16px 14px;border-radius:var(--radius);box-shadow:0 2px 8px rgba(0,0,0,.05);border-top:4px solid #cbd5e1;transition:transform .2s,box-shadow .2s;}
+.sum-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.08);}
+.sum-card.gross{border-top-color:#6366f1;}.sum-card.netsale{border-top-color:var(--brand);}
+.sum-card.cost{border-top-color:var(--muted);}.sum-card.expenses{border-top-color:var(--danger);}
+.sum-card.discount{border-top-color:var(--sky);}.sum-card.recovery{border-top-color:var(--success);}
+.sum-card.credit{border-top-color:var(--warning);}
+.sum-card.profit{border-top-color:var(--success);background:var(--success-bg);}
+.sum-card.loss{border-top-color:var(--danger);background:var(--danger-bg);}
+.sum-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;}
+.sum-val{font-size:18px;font-weight:800;margin-top:5px;font-family:'JetBrains Mono',monospace;}
+/* DATE FILTER BAR */
+.filter-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.filter-bar label{font-size:12px;font-weight:700;color:var(--muted);}
+.filter-btn{padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:transparent;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .2s;width:auto;}
+.filter-btn.active{background:var(--brand);color:white;border-color:var(--brand);}
+.filter-date{padding:6px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;font-family:'Inter',sans-serif;outline:none;}
+/* CHARTS */
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px;}
+.chart-box{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.05);border:1px solid var(--border);}
+.chart-box h4{margin:0 0 12px;font-size:13px;font-weight:700;color:var(--primary);}
+/* MODULES */
+.module-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:20px;}
+.module-box{background:var(--card);padding:20px;border-radius:var(--radius);box-shadow:0 2px 8px rgba(0,0,0,.05);border:1px solid var(--border);}
+.module-box h3{margin:0 0 14px;font-size:13px;font-weight:700;color:var(--primary);border-bottom:2px solid var(--bg);padding-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+/* STOCK BADGE */
+.stock-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.stock-ok{background:var(--success-bg);color:var(--success);}
+.stock-low{background:var(--warning-bg);color:var(--warning);}
+.stock-out{background:var(--danger-bg);color:var(--danger);}
+/* SEARCH BAR */
+.search-bar{width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;outline:none;margin-bottom:10px;font-family:'Inter',sans-serif;}
+.search-bar:focus{border-color:var(--brand);}
+.form-group{margin-bottom:10px;}
+.form-group label{display:block;font-size:11px;font-weight:600;margin-bottom:3px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:#f8fafc;outline:none;font-family:'Inter',sans-serif;transition:border-color .2s;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--brand);background:white;}
+.form-group textarea{resize:vertical;min-height:60px;}
+.input-suffix-wrap{position:relative;}.input-suffix-wrap input{padding-right:36px;}
+.input-suffix{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:700;color:var(--muted);pointer-events:none;}
+.disc-preview{font-size:11px;color:var(--sky);font-weight:600;margin-top:3px;min-height:15px;}
+.pass-strength{font-size:11px;margin-top:3px;font-weight:600;min-height:15px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+button{width:100%;padding:9px;background:var(--brand);color:white;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;}
+button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px);}
+button:active{transform:translateY(0);}
+button.btn-success{background:var(--success);}
+button.btn-danger{background:var(--danger);}
+button.btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border);}
+button.btn-ghost:hover:not(:disabled){background:var(--bg);color:var(--text);filter:none;}
+button:disabled{background:#cbd5e1!important;cursor:not-allowed;transform:none!important;filter:none!important;}
+.data-list{max-height:220px;overflow-y:auto;margin-top:10px;border:1px solid var(--border);border-radius:8px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th,td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--border);}
+th{background:#f8fafc;color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;position:sticky;top:0;z-index:1;}
+tr:last-child td{border-bottom:none;}tr:hover td{background:#f8fafc;}
+.del-btn{width:auto;padding:2px 7px;background:transparent;color:var(--danger);border:1px solid #fecaca;border-radius:5px;font-size:11px;cursor:pointer;}
+.del-btn:hover{background:var(--danger);color:white;border-color:var(--danger);transform:none;}
+.date-chip{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;background:var(--bg);padding:2px 5px;border-radius:4px;white-space:nowrap;}
+.note-chip{font-size:10px;color:var(--brand);background:#eff6ff;padding:2px 6px;border-radius:4px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+.list-item{display:flex;justify-content:space-between;align-items:center;padding:8px 11px;border-bottom:1px solid var(--border);font-size:12px;}
+.list-item:last-child{border-bottom:none;}.list-item:hover{background:#f8fafc;}
+.empty-state{text-align:center;padding:18px;color:var(--muted);font-size:12px;}
+.empty-icon{font-size:24px;margin-bottom:5px;}
+.lock-box{background:var(--danger-bg);border:1px solid #fecaca;border-radius:12px;padding:18px;text-align:center;margin-top:8px;}
+.cust-code{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--brand);background:#eff6ff;padding:2px 7px;border-radius:6px;}
+.cust-found{background:#f0f9ff;border:1.5px solid var(--sky);border-radius:10px;padding:12px;margin-bottom:10px;}
+.cust-found .cf-name{font-size:13px;font-weight:700;color:var(--primary);}
+.cust-found .cf-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.cust-found .cf-bal{font-size:12px;font-weight:700;margin-top:4px;}
+.ledger-row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;}
+.ledger-row:last-child{border-bottom:none;}.ledger-row:hover{background:#f8fafc;}
+.l-cr{color:var(--danger);font-weight:700;}.l-dr{color:var(--success);font-weight:700;}
+.l-bal{font-weight:800;font-family:'JetBrains Mono',monospace;}
+.inv-items-box{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:10px;margin:8px 0;}
+.inv-item-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.inv-item-row:last-child{margin-bottom:0;}
+.inv-item-row select,.inv-item-row input{flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;font-family:'Inter',sans-serif;}
+.inv-item-row input{max-width:70px;}
+.inv-rem-btn{width:auto;padding:3px 8px;background:transparent;color:var(--danger);border:1px solid #fecaca;border-radius:5px;font-size:11px;cursor:pointer;flex-shrink:0;}
+.inv-summary{background:white;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px;}
+.inv-summary-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);}
+.inv-summary-row:last-child{border-bottom:none;font-size:14px;font-weight:800;color:var(--brand);}
+::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px;}
+@media(max-width:640px){.app-header{flex-direction:column;align-items:flex-start;}.summary-grid{grid-template-columns:repeat(2,1fr);}.two-col{grid-template-columns:1fr;}}
+</style>
 </head>
 <body>
-
-<!-- LOADING -->
-<div id="loading-screen">
-    <div class="logo">MS TRADERS</div>
-    <div class="sub">ERP System Loading...</div>
-    <div class="spinner"></div>
-</div>
-
+<div id="loading-screen"><div class="logo-txt">MS TRADERS</div><div class="logo-sub">ERP System Loading...</div><div class="spinner"></div></div>
 <div id="toast"></div>
 
-<!-- PASSWORD CHANGE MODAL -->
-<div class="modal-backdrop" id="modal-changepass">
-    <div class="modal-box">
-        <h3>🔑 Password Change</h3>
-        <div class="form-group"><label>Purana Password</label><input type="password" id="cp-old" placeholder="Purana password"></div>
-        <div class="form-group"><label>Naya Password</label><input type="password" id="cp-new" placeholder="Min 6 characters"></div>
-        <div class="form-group"><label>Confirm</label><input type="password" id="cp-confirm" placeholder="Dobara likhein"></div>
-        <div id="cp-error" style="display:none;color:var(--danger);font-size:12px;font-weight:600;margin-top:8px;"></div>
-        <div class="modal-actions">
-            <button class="btn-ghost" onclick="closeModal('modal-changepass')">Cancel</button>
-            <button class="btn-success" onclick="changePassword()">✔ Save</button>
-        </div>
+<!-- COMPANY MANAGEMENT MODAL -->
+<div class="modal-backdrop" id="modal-company">
+  <div class="modal-box">
+    <h3>🏢 Companies Manage Karein</h3>
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <input type="text" id="new-company-name" placeholder="Nai company ka naam..." style="flex:1;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:'Inter',sans-serif;">
+      <button onclick="addCompany()" style="width:auto;padding:8px 14px;flex-shrink:0;" class="btn-success">+ Add</button>
     </div>
+    <div id="company-list" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+      <div class="empty-state"><div class="empty-icon">🏢</div>Loading...</div>
+    </div>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="btn-ghost" onclick="closeModal('modal-company')">Close</button>
+    </div>
+  </div>
 </div>
-
-<!-- USERNAME CHANGE MODAL (Admin only) -->
 <div class="modal-backdrop" id="modal-changeuser">
-    <div class="modal-box">
-        <h3>✏️ Admin Username Change</h3>
-        <div style="background:var(--warning-bg);border-left:3px solid var(--warning);padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:12px;color:var(--warning);font-weight:600;">
-            ⚠️ Username change karne ke baad aapko naye username se login karna hoga.
-        </div>
-        <div class="form-group">
-            <label>Maujuda Username</label>
-            <input type="text" id="cu-current" readonly style="background:#f1f5f9;color:var(--muted);">
-        </div>
-        <div class="form-group">
-            <label>Naya Username</label>
-            <input type="text" id="cu-new" placeholder="Naya username likhein">
-        </div>
-        <div class="form-group">
-            <label>Password Confirm (Security)</label>
-            <input type="password" id="cu-pass" placeholder="Apna password daalen">
-        </div>
-        <div id="cu-error" style="display:none;color:var(--danger);font-size:12px;font-weight:600;margin-top:8px;"></div>
-        <div class="modal-actions">
-            <button class="btn-ghost" onclick="closeModal('modal-changeuser')">Cancel</button>
-            <button class="btn-success" onclick="changeUsername()">✔ Save</button>
-        </div>
-    </div>
+  <div class="modal-box">
+    <h3>✏️ Admin Username Change</h3>
+    <div class="alert-box alert-warning" style="display:block;">⚠️ Username change ke baad naye naam se login karein.</div>
+    <div class="form-group"><label>Maujuda Username</label><input type="text" id="cu-current" readonly style="background:#f1f5f9;color:var(--muted);"></div>
+    <div class="form-group"><label>Naya Username</label><input type="text" id="cu-new" placeholder="Naya username"></div>
+    <div class="form-group"><label>Password Confirm</label><input type="password" id="cu-pass" placeholder="Apna password"></div>
+    <div id="cu-error" style="display:none;color:var(--danger);font-size:12px;font-weight:600;margin-top:8px;"></div>
+    <div class="modal-actions"><button class="btn-ghost" onclick="closeModal('modal-changeuser')">Cancel</button><button class="btn-success" onclick="changeUsername()">✔ Save</button></div>
+  </div>
 </div>
-
-<!-- DELETE MODAL -->
 <div class="modal-backdrop" id="modal-delete">
-    <div class="modal-box">
-        <h3>🗑️ Delete Confirm</h3>
-        <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">Kya aap sure hain? Yeh permanently delete ho jayega.</p>
-        <div class="modal-actions">
-            <button class="btn-ghost" onclick="closeModal('modal-delete')">Cancel</button>
-            <button class="btn-danger" onclick="confirmDelete()">Haan, Delete Karo</button>
-        </div>
+  <div class="modal-box">
+    <h3>🗑️ Delete Confirm</h3>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">Kya aap sure hain? Permanently delete hoga.</p>
+    <div class="modal-actions"><button class="btn-ghost" onclick="closeModal('modal-delete')">Cancel</button><button class="btn-danger" onclick="confirmDelete()">Delete Karo</button></div>
+  </div>
+</div>
+<div class="modal-backdrop" id="modal-clear">
+  <div class="modal-box">
+    <h3>⚠️ Clear History</h3>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="clr-sales" checked> Sales history</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="clr-expenses" checked> Expenses history</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="clr-recovery" checked> Recovery history</label>
     </div>
+    <p style="font-size:12px;color:var(--danger);font-weight:600;margin:0 0 16px;">⚠️ Undo nahi hoga!</p>
+    <div class="modal-actions"><button class="btn-ghost" onclick="closeModal('modal-clear')">Cancel</button><button class="btn-danger" onclick="confirmClear()">Clear Karo</button></div>
+  </div>
+</div>
+<div class="modal-backdrop" id="modal-cust-ledger">
+  <div class="modal-box wide">
+    <h3>📒 Customer Ledger: <span id="mlci-name" style="color:var(--brand);"></span></h3>
+    <div style="display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap;">
+      <span style="font-size:12px;">Code: <b id="mlci-code" class="cust-code"></b></span>
+      <span style="font-size:12px;">Phone: <b id="mlci-phone"></b></span>
+      <span style="font-size:12px;">Total Sales: <b id="mlci-sales" style="color:var(--brand);"></b></span>
+      <span style="font-size:12px;">Recovery: <b id="mlci-rec" style="color:var(--success);"></b></span>
+      <span style="font-size:12px;">Balance: <b id="mlci-bal" style="color:var(--danger);"></b></span>
+    </div>
+    <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+      <table><thead><tr><th>Date</th><th>Type</th><th>Details</th><th>Debit (Sale)</th><th>Credit (Recovery)</th><th>Balance</th></tr></thead>
+      <tbody id="modal-ledger-rows"></tbody></table>
+    </div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn-ghost" onclick="closeModal('modal-cust-ledger')">Close</button>
+      <button onclick="printLedger()" style="background:var(--purple);">🖨️ Print Ledger</button>
+    </div>
+  </div>
 </div>
 
-<!-- CLEAR HISTORY MODAL -->
-<div class="modal-backdrop" id="modal-clear">
-    <div class="modal-box">
-        <h3>⚠️ Clear History</h3>
-        <p style="font-size:13px;color:var(--muted);margin:0 0 12px;">Kya clear karna chahte hain?</p>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" id="clr-sales" checked> Sales history
-            </label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" id="clr-expenses" checked> Expenses history
-            </label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" id="clr-recovery" checked> Recovery history
-            </label>
-        </div>
-        <p style="font-size:12px;color:var(--danger);font-weight:600;margin:0 0 16px;">⚠️ Yeh action undo nahi hoga!</p>
-        <div class="modal-actions">
-            <button class="btn-ghost" onclick="closeModal('modal-clear')">Cancel</button>
-            <button class="btn-danger" onclick="confirmClear()">🗑️ Clear Karo</button>
-        </div>
-    </div>
+<div class="modal-backdrop" id="modal-note">
+  <div class="modal-box">
+    <h3 id="note-modal-title">💬 Note</h3>
+    <div class="form-group"><label>Note likhein</label><textarea id="note-text" placeholder="Koi bhi note ya comment..."></textarea></div>
+    <div class="modal-actions"><button class="btn-ghost" onclick="closeModal('modal-note')">Cancel</button><button class="btn-success" onclick="saveNote()">✔ Save</button></div>
+  </div>
+</div>
+<div class="modal-backdrop" id="modal-stock">
+  <div class="modal-box">
+    <h3>📦 Stock Add Karein</h3>
+    <div id="stock-prod-name" style="font-size:13px;font-weight:700;color:var(--brand);margin-bottom:12px;"></div>
+    <div class="form-group"><label>Current Stock In Hand</label><input type="number" id="stock-qty" placeholder="Units" min="0"></div>
+    <div class="modal-actions"><button class="btn-ghost" onclick="closeModal('modal-stock')">Cancel</button><button class="btn-success" onclick="saveStock()">✔ Update Stock</button></div>
+  </div>
 </div>
 
 <!-- AUTH SCREEN -->
 <div id="auth-screen" style="display:none;">
-    <div class="auth-card">
-        <div class="auth-top">
-            <div class="auth-logo">MS TRADERS</div>
-            <div class="auth-sub">Enterprise Resource Planning</div>
-        </div>
-        <div class="auth-tabs">
-            <button class="auth-tab active" onclick="switchTab('login')">🔐 Login</button>
-            <button class="auth-tab" onclick="switchTab('register')">📝 Register</button>
-        </div>
-        <div class="auth-body">
-            <!-- LOGIN -->
-            <div class="auth-panel active" id="panel-login">
-                <div class="alert-box alert-danger"  id="login-err">❌ Galat Username ya Password!</div>
-                <div class="alert-box alert-warning" id="login-pending">⚠️ Aapki request pending hai. Admin approve kare ga.</div>
-                <div class="alert-box alert-danger"  id="login-rejected">❌ Aapki request reject ho gayi. Admin se rabta karein.</div>
-                <div class="form-group">
-                    <label>Role</label>
-                    <select id="login-role" onchange="onRoleChange()">
-                        <option value="">-- Role chunein --</option>
-                        <option value="admin">👑 Admin</option>
-                        <option value="coadmin">🛡️ Co-Admin</option>
-                        <option value="partner">🤝 Partner</option>
-                    </select>
-                </div>
-                <div id="grp-login-user" style="display:none;" class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="login-user" placeholder="Username daalen">
-                </div>
-                <div id="grp-login-pass" style="display:none;" class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="login-pass" placeholder="Password daalen">
-                </div>
-                <button id="btn-login" onclick="doLogin()" style="display:none;">🔐 Login</button>
-            </div>
-            <!-- REGISTER -->
-            <div class="auth-panel" id="panel-register">
-                <div class="alert-box alert-danger"  id="reg-err"></div>
-                <div class="alert-box alert-success" id="reg-success">✅ Request bhej di! Admin approve karega.</div>
-                <div class="form-group">
-                    <label>Account Type</label>
-                    <select id="reg-role">
-                        <option value="partner">🤝 Partner</option>
-                        <option value="coadmin">🛡️ Co-Admin</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Username Chunein</label>
-                    <input type="text" id="reg-user" placeholder="e.g., ali_partner" oninput="checkUsername()">
-                    <div id="user-check" style="font-size:11px;margin-top:4px;font-weight:600;min-height:16px;"></div>
-                </div>
-                <div class="form-group">
-                    <label>Password Set Karein</label>
-                    <input type="password" id="reg-pass" placeholder="Min 6 characters" oninput="checkPassStrength()">
-                    <div class="pass-strength" id="pass-strength"></div>
-                </div>
-                <div class="form-group">
-                    <label>Password Confirm</label>
-                    <input type="password" id="reg-confirm" placeholder="Dobara likhein">
-                </div>
-                <button class="btn-success" onclick="doRegister()">📨 Request Bhejein</button>
-            </div>
-        </div>
+  <div class="auth-card">
+    <div class="auth-top"><div class="auth-logo">MS TRADERS</div><div class="auth-sub">Enterprise Resource Planning</div></div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">🔐 Login</button>
+      <button class="auth-tab" onclick="switchTab('register')">📝 Register</button>
     </div>
+    <div class="auth-body">
+      <div class="auth-panel active" id="panel-login">
+        <div class="alert-box alert-danger" id="login-err">❌ Galat Username ya Password!</div>
+        <div class="alert-box alert-warning" id="login-pending">⚠️ Pending hai. Admin approve karega.</div>
+        <div class="alert-box alert-danger" id="login-rejected">❌ Reject ho gayi. Admin se rabta karein.</div>
+        <div class="form-group"><label>Role</label>
+          <select id="login-role" onchange="onRoleChange()">
+            <option value="">-- Role chunein --</option>
+            <option value="admin">👑 Admin</option>
+            <option value="coadmin">🛡️ Co-Admin</option>
+            <option value="partner">🤝 Partner</option>
+          </select></div>
+        <div id="grp-lu" style="display:none;" class="form-group"><label>Username</label><input type="text" id="login-user" placeholder="Username"></div>
+        <div id="grp-lp" style="display:none;" class="form-group"><label>Password</label><input type="password" id="login-pass" placeholder="Password"></div>
+        <button id="btn-login" onclick="doLogin()" style="display:none;">🔐 Login</button>
+      </div>
+      <div class="auth-panel" id="panel-register">
+        <div class="alert-box alert-danger" id="reg-err"></div>
+        <div class="alert-box alert-success" id="reg-success">✅ Request bhej di! Admin approve karega.</div>
+        <div class="form-group"><label>Account Type</label>
+          <select id="reg-role"><option value="partner">🤝 Partner</option><option value="coadmin">🛡️ Co-Admin</option></select></div>
+        <div class="form-group"><label>Username</label>
+          <input type="text" id="reg-user" placeholder="e.g., ali_partner" oninput="checkUsername()">
+          <div id="user-check" style="font-size:11px;margin-top:3px;font-weight:600;min-height:15px;"></div></div>
+        <div class="form-group"><label>Password</label>
+          <input type="password" id="reg-pass" placeholder="Min 6 characters" oninput="checkPassStrength()">
+          <div class="pass-strength" id="pass-strength"></div></div>
+        <div class="form-group"><label>Confirm</label><input type="password" id="reg-confirm" placeholder="Dobara likhein"></div>
+        <button class="btn-success" onclick="doRegister()">📨 Request Bhejein</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- MAIN APP -->
 <div id="main-app">
-    <div class="app-wrap">
-        <div class="app-header">
-            <div>
-                <div class="brand-name">MS TRADERS</div>
-                <div class="brand-sub">ERP & Financial Dashboard</div>
-            </div>
-            <div class="header-right">
-                <div class="clock-badge" id="live-clock">--:--:--</div>
-                <div class="user-chip">👤 <span id="user-display-name"></span> <span class="role-badge" id="role-badge">ADMIN</span></div>
-                <button class="btn-hdr" onclick="exportPDF()">📄 Export PDF</button>
-                <button class="btn-hdr" id="btn-clear-history" onclick="openModal('modal-clear')" style="display:none;">🗑️ Clear History</button>
-                <button class="btn-hdr" id="btn-change-user" onclick="openChangeUsername()" style="display:none;">✏️ Username</button>
-                <button class="btn-hdr" onclick="openModal('modal-changepass')">🔑 Password</button>
-                <button class="btn-hdr danger" onclick="logout()">Logout</button>
-            </div>
-        </div>
-
-        <!-- PARTNER REQUESTS (Admin) -->
-        <div id="requests-panel" class="requests-panel" style="display:none;">
-            <h3>🤝 Partner Requests <span class="badge-count" id="pending-count" style="display:none;">0</span></h3>
-            <div id="requests-list"><div class="empty-req">📭 Koi request nahi</div></div>
-        </div>
-
-        <!-- SUMMARY -->
-        <div class="summary-grid">
-            <div class="sum-card gross" id="card-gross"><div class="sum-title">Gross Sale</div><div class="sum-val" id="log-gross" style="color:#6366f1;">0</div></div>
-            <div class="sum-card discount" id="card-disc"><div class="sum-title">Total Discount</div><div class="sum-val" id="log-disc" style="color:var(--sky);">0</div></div>
-            <div class="sum-card netsale"><div class="sum-title">Net Sale</div><div class="sum-val" id="log-net" style="color:var(--brand);">0</div></div>
-            <div class="sum-card cost" id="card-cost"><div class="sum-title">Product Cost</div><div class="sum-val" id="log-cost">0</div></div>
-            <div class="sum-card expenses" id="card-exp"><div class="sum-title">Expenses</div><div class="sum-val" id="log-exp" style="color:var(--danger);">0</div></div>
-            <div class="sum-card recovery"><div class="sum-title">Cash Recovery</div><div class="sum-val" id="log-rec" style="color:var(--success);">0</div></div>
-            <div class="sum-card credit"><div class="sum-title">Market Credit</div><div class="sum-val" id="log-credit" style="color:var(--warning);">0</div></div>
-            <div class="sum-card" id="pl-card"><div class="sum-title" id="pl-title">Net Report</div><div class="sum-val" id="log-pl">0</div></div>
-        </div>
-
-        <!-- MODULES -->
-        <div class="module-grid">
-            <!-- PRODUCTS -->
-            <div class="module-box" id="mod-products">
-                <h3>📦 Product Register</h3>
-                <div class="form-group"><label>Brand</label>
-                    <select id="p-brand">
-                        <option value="Young Doctors Products">Young Doctors Products</option>
-                        <option value="MS Products">MS Products</option>
-                    </select></div>
-                <div class="form-group"><label>Product Name</label><input type="text" id="p-name" placeholder="e.g., Face Wash"></div>
-                <div class="form-group"><label>Cost Price (PKR)</label><input type="number" id="p-cost" placeholder="Manufacturing cost" min="0"></div>
-                <div class="form-group"><label>Sale Price (PKR)</label><input type="number" id="p-price" placeholder="Retail price" min="0"></div>
-                <button class="btn-success" onclick="addProduct()">+ Product Add Karein</button>
-                <div class="data-list" id="product-list-view"><div class="empty-state"><div class="empty-icon">📦</div>Koi product nahi</div></div>
-            </div>
-
-            <!-- SALES -->
-            <div class="module-box" id="mod-sales">
-                <h3>📈 Daily Sales Log</h3>
-                <div id="sales-form-admin">
-                    <div class="form-group"><label>Product</label><select id="s-product" onchange="updateDiscPreview()"></select></div>
-                    <div class="form-group"><label>Quantity</label><input type="number" id="s-qty" placeholder="Units biki" min="1" oninput="updateDiscPreview()"></div>
-                    <div class="form-group">
-                        <label>Discount % per Unit</label>
-                        <div class="input-suffix-wrap">
-                            <input type="number" id="s-disc" placeholder="0" min="0" max="100" value="0" oninput="updateDiscPreview()">
-                            <span class="input-suffix">%</span>
-                        </div>
-                        <div class="discount-preview" id="disc-preview"></div>
-                    </div>
-                    <button onclick="addSale()">⚡ Sale Record Karein</button>
-                </div>
-                <div class="data-list">
-                    <table><thead><tr><th>Product</th><th>Qty</th><th>Gross</th><th>Disc%</th><th>Disc</th><th>Net</th><th>Date</th><th id="s-del-th"></th></tr></thead>
-                    <tbody id="sales-rows"></tbody></table>
-                </div>
-            </div>
-
-            <!-- EXPENSES -->
-            <div class="module-box" id="mod-expenses">
-                <h3>💸 Expenses</h3>
-                <div class="form-group"><label>Category</label>
-                    <select id="e-type">
-                        <option value="Marketing">Marketing</option>
-                        <option value="Salaries">Salaries</option>
-                        <option value="Rent">Shop Rent</option>
-                        <option value="Transport">Transport</option>
-                        <option value="Others">Other</option>
-                    </select></div>
-                <div class="form-group"><label>Amount (PKR)</label><input type="number" id="e-amount" placeholder="Raqam" min="0"></div>
-                <div class="form-group"><label>Details</label><input type="text" id="e-desc" placeholder="e.g., Shop kiraya"></div>
-                <button class="btn-success" onclick="addExpense()">📝 Record Karein</button>
-                <!-- Admin: full table -->
-                <div id="exp-table-admin" class="data-list">
-                    <table><thead><tr><th>Type</th><th>Details</th><th>Amount</th><th>Date</th><th></th></tr></thead>
-                    <tbody id="exp-rows"></tbody></table>
-                </div>
-            </div>
-
-            <!-- EXPENSES TOTAL (Partner only) -->
-            <div class="module-box" id="mod-expenses-partner" style="display:none;">
-                <h3>💸 Total Expenses</h3>
-                <div style="background:var(--danger-bg);border:1px solid #fecaca;border-radius:12px;padding:20px;text-align:center;margin-top:8px;">
-                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Total Expenses</div>
-                    <div id="partner-exp-total" style="font-size:32px;font-weight:800;color:var(--danger);font-family:'JetBrains Mono',monospace;">0</div>
-                    <div style="font-size:11px;color:var(--muted);margin-top:6px;">PKR</div>
-                </div>
-            </div>
-
-            <!-- RECOVERY -->
-            <div class="module-box" id="mod-recovery">
-                <h3>💰 Cash Recovery</h3>
-                <div id="rec-form-admin">
-                    <div class="form-group"><label>Client / Party</label><input type="text" id="r-desc" placeholder="Customer naam"></div>
-                    <div class="form-group"><label>Amount (PKR)</label><input type="number" id="r-amount" placeholder="Collected cash" min="0"></div>
-                    <button class="btn-success" onclick="addRecovery()">✔ Record Karein</button>
-                </div>
-                <div class="data-list">
-                    <table><thead><tr><th>Party</th><th>Amount</th><th>Date</th><th id="r-del-th"></th></tr></thead>
-                    <tbody id="rec-rows"></tbody></table>
-                </div>
-            </div>
-        </div>
+  <div class="app-wrap">
+    <!-- HEADER -->
+    <div class="app-header">
+      <div><div class="brand-name">MS TRADERS</div><div class="brand-sub">ERP & Financial Dashboard</div></div>
+      <div class="header-right">
+        <div class="clock-badge" id="live-clock">--:--:--</div>
+        <div class="user-chip">👤 <span id="user-display-name"></span> <span class="role-badge" id="role-badge">ADMIN</span></div>
+        <button class="btn-hdr" id="btn-notif" onclick="toggleNotifPanel()" style="display:none;">🔔 <span id="notif-count" style="background:var(--danger);border-radius:10px;padding:1px 5px;font-size:10px;display:none;"></span></button>
+        <button class="btn-hdr" onclick="exportPDF()">📄 PDF</button>
+        <button class="btn-hdr" id="btn-clear" onclick="openModal('modal-clear')" style="display:none;">🗑️ Clear</button>
+        <button class="btn-hdr" id="btn-chuser" onclick="openChangeUsername()" style="display:none;">✏️ User</button>
+        <button class="btn-hdr danger" onclick="logout()">Logout</button>
+      </div>
     </div>
+
+    <!-- NOTIFICATIONS PANEL -->
+    <div id="notif-panel" class="notif-panel" style="display:none;">
+      <h3>🔔 Notifications <button class="btn-ghost" style="width:auto;padding:3px 10px;font-size:11px;" onclick="clearNotifs()">Clear All</button></h3>
+      <div id="notif-list"><div class="empty-state"><div class="empty-icon">🔔</div>Koi notification nahi</div></div>
+    </div>
+
+    <!-- PARTNER REQUESTS (Admin) -->
+    <div id="req-panel" class="req-panel" style="display:none;">
+      <h3>🤝 Partner Requests <span class="badge-count" id="pending-count" style="display:none;">0</span></h3>
+      <div id="requests-list"><div class="empty-state">📭 Koi request nahi</div></div>
+    </div>
+
+    <!-- DATE FILTER -->
+    <div class="filter-bar">
+      <label>📅 Filter:</label>
+      <button class="filter-btn active" onclick="setFilter('all')">Sab</button>
+      <button class="filter-btn" onclick="setFilter('today')">Aaj</button>
+      <button class="filter-btn" onclick="setFilter('week')">Is Hafte</button>
+      <button class="filter-btn" onclick="setFilter('month')">Is Mahine</button>
+      <input type="date" id="filter-from" class="filter-date" onchange="setFilter('custom')" placeholder="Se">
+      <input type="date" id="filter-to" class="filter-date" onchange="setFilter('custom')" placeholder="Tak">
+      <span id="filter-label" style="font-size:11px;color:var(--brand);font-weight:700;"></span>
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <div class="summary-grid">
+      <div class="sum-card gross" id="card-gross"><div class="sum-title">Gross Sale</div><div class="sum-val" id="log-gross" style="color:#6366f1;">0</div></div>
+      <div class="sum-card discount" id="card-disc"><div class="sum-title">Discount</div><div class="sum-val" id="log-disc" style="color:var(--sky);">0</div></div>
+      <div class="sum-card netsale"><div class="sum-title">Net Sale</div><div class="sum-val" id="log-net" style="color:var(--brand);">0</div></div>
+      <div class="sum-card cost" id="card-cost"><div class="sum-title">Product Cost</div><div class="sum-val" id="log-cost">0</div></div>
+      <div class="sum-card expenses" id="card-exp"><div class="sum-title">Expenses</div><div class="sum-val" id="log-exp" style="color:var(--danger);">0</div></div>
+      <div class="sum-card recovery"><div class="sum-title">Cash Recovery</div><div class="sum-val" id="log-rec" style="color:var(--success);">0</div></div>
+      <div class="sum-card credit"><div class="sum-title">Market Credit</div><div class="sum-val" id="log-credit" style="color:var(--warning);">0</div></div>
+      <div class="sum-card" id="pl-card"><div class="sum-title" id="pl-title">Net Report</div><div class="sum-val" id="log-pl">0</div></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid" id="charts-section">
+      <div class="chart-box"><h4>📈 Sales Trend</h4><canvas id="chart-sales" height="180"></canvas></div>
+      <div class="chart-box"><h4>🥧 Expenses Breakdown</h4><canvas id="chart-exp" height="180"></canvas></div>
+      <div class="chart-box"><h4>📊 Gross vs Net vs Recovery</h4><canvas id="chart-compare" height="180"></canvas></div>
+    </div>
+
+    <!-- MODULES -->
+    <div class="module-grid">
+
+      <!-- PRODUCTS (Admin/CoAdmin) -->
+      <div class="module-box" id="mod-products">
+        <h3>📦 Product Register
+          <button onclick="openModal('modal-company')" style="width:auto;padding:3px 10px;font-size:11px;background:var(--bg);color:var(--brand);border:1.5px solid var(--brand);border-radius:6px;">⚙️ Companies</button>
+        </h3>
+        <div class="form-group"><label>Brand / Company</label>
+          <select id="p-brand"></select>
+        </div>
+        <div class="two-col">
+          <div class="form-group"><label>Product Name</label><input type="text" id="p-name" placeholder="e.g., Face Wash"></div>
+          <div class="form-group"><label>Initial Stock</label><input type="number" id="p-stock" placeholder="Units" min="0" value="0"></div>
+        </div>
+        <div class="two-col">
+          <div class="form-group"><label>Cost Price (PKR)</label><input type="number" id="p-cost" placeholder="Cost" min="0"></div>
+          <div class="form-group"><label>Sale Price (PKR)</label><input type="number" id="p-price" placeholder="Sale" min="0"></div>
+        </div>
+        <div class="form-group"><label>Expiry Date (Optional)</label>
+          <input type="month" id="p-expiry" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:#f8fafc;outline:none;font-family:'Inter',sans-serif;">
+        </div>
+        <button class="btn-success" id="btn-add-prod" onclick="addProduct()">+ Product Add Karein</button>
+        <input class="search-bar" id="srch-prod" placeholder="🔍 Product search..." oninput="renderProducts()" style="margin-top:10px;">
+        <div class="data-list" id="product-list-view"><div class="empty-state"><div class="empty-icon">📦</div>Koi product nahi</div></div>
+      </div>
+
+      <!-- SALES -->
+      <div class="module-box" id="mod-sales">
+        <h3>📈 Daily Sales</h3>
+        <div id="sales-form-admin">
+          <div class="form-group"><label>Product</label><select id="s-product" onchange="updateDiscPreview()"></select></div>
+          <div class="two-col">
+            <div class="form-group"><label>Quantity</label><input type="number" id="s-qty" placeholder="Units" min="1" oninput="updateDiscPreview()"></div>
+            <div class="form-group"><label>Discount %</label>
+              <div class="input-suffix-wrap"><input type="number" id="s-disc" placeholder="0" min="0" max="100" value="0" oninput="updateDiscPreview()"><span class="input-suffix">%</span></div>
+            </div>
+          </div>
+          <div class="disc-preview" id="disc-preview"></div>
+          <div class="form-group" style="margin-top:6px;"><label>Note (Optional)</label><input type="text" id="s-note" placeholder="Koi note..."></div>
+          <button onclick="addSale()">⚡ Sale Record Karein</button>
+        </div>
+        <input class="search-bar" id="srch-sales" placeholder="🔍 Sales search..." oninput="renderSales()">
+        <div class="data-list">
+          <table><thead><tr><th>Product</th><th>Qty</th><th>Gross</th><th>Disc</th><th>Net</th><th>Note</th><th>Date</th><th id="s-del-th"></th></tr></thead>
+          <tbody id="sales-rows"></tbody></table>
+        </div>
+      </div>
+
+      <!-- EXPENSES (Admin/CoAdmin) -->
+      <div class="module-box" id="mod-expenses">
+        <h3>💸 Expenses</h3>
+        <div class="form-group"><label>Category</label>
+          <select id="e-type"><option value="Marketing">Marketing</option><option value="Salaries">Salaries</option><option value="Rent">Shop Rent</option><option value="Transport">Transport</option><option value="Others">Other</option></select></div>
+        <div class="two-col">
+          <div class="form-group"><label>Amount (PKR)</label><input type="number" id="e-amount" placeholder="Raqam" min="0"></div>
+          <div class="form-group"><label>Details</label><input type="text" id="e-desc" placeholder="Description"></div>
+        </div>
+        <div class="form-group"><label>Note (Optional)</label><input type="text" id="e-note" placeholder="Koi note..."></div>
+        <button class="btn-success" id="btn-add-exp" onclick="addExpense()">📝 Record Karein</button>
+        <div class="data-list">
+          <table><thead><tr><th>Type</th><th>Details</th><th>Amt</th><th>Note</th><th>Date</th><th></th></tr></thead>
+          <tbody id="exp-rows"></tbody></table>
+        </div>
+      </div>
+
+      <!-- EXPENSES (Partner view - total only) -->
+      <div class="module-box" id="mod-exp-partner" style="display:none;">
+        <h3>💸 Total Expenses</h3>
+        <div class="lock-box">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">Total Expenses</div>
+          <div id="partner-exp-total" style="font-size:32px;font-weight:800;color:var(--danger);font-family:'JetBrains Mono',monospace;">0</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:5px;">PKR</div>
+        </div>
+      </div>
+
+      <!-- RECOVERY -->
+      <div class="module-box" id="mod-recovery">
+        <h3>💰 Cash Recovery</h3>
+        <div id="rec-form-admin">
+          <div class="form-group">
+            <label>Customer Code</label>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="r-cust-code" placeholder="MST-001" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();" onblur="lookupRecoveryCustomer()">
+              <button onclick="lookupRecoveryCustomer()" style="width:auto;padding:8px 12px;flex-shrink:0;">🔍</button>
+            </div>
+            <div id="r-cust-name" style="font-size:11px;font-weight:600;margin-top:3px;min-height:15px;"></div>
+          </div>
+          <div class="two-col">
+            <div class="form-group"><label>Amount (PKR)</label><input type="number" id="r-amount" placeholder="Amount" min="0"></div>
+            <div class="form-group"><label>Note (Optional)</label><input type="text" id="r-note" placeholder="Note..."></div>
+          </div>
+          <button class="btn-success" onclick="addRecoveryWithCustomer()">✔ Recovery Record Karein</button>
+        </div>
+        <input class="search-bar" id="srch-rec" placeholder="🔍 Recovery search..." oninput="renderRecovery()">
+        <div class="data-list">
+          <table><thead><tr><th>Party</th><th>Amount</th><th>Note</th><th>Date</th><th id="r-del-th"></th></tr></thead>
+          <tbody id="rec-rows"></tbody></table>
+        </div>
+      </div>
+
+
+      <!-- CUSTOMER REGISTER (Admin/CoAdmin) -->
+      <div class="module-box" id="mod-customers">
+        <h3>👥 Customer Register</h3>
+        <div class="two-col">
+          <div class="form-group"><label>Customer Name</label><input type="text" id="c-name" placeholder="Customer ka naam"></div>
+          <div class="form-group"><label>Code (Auto ya Custom)</label><input type="text" id="c-code" placeholder="e.g., MST-001"></div>
+        </div>
+        <div class="two-col">
+          <div class="form-group"><label>Phone</label><input type="text" id="c-phone" placeholder="03xx-xxxxxxx"></div>
+          <div class="form-group"><label>Area / City</label><input type="text" id="c-area" placeholder="Lahore, Karachi..."></div>
+        </div>
+        <div class="form-group"><label>Address (Optional)</label><input type="text" id="c-addr" placeholder="Gali, Mohalla..."></div>
+        <button class="btn-success" id="btn-add-cust" onclick="addCustomer()">+ Customer Add Karein</button>
+        <input class="search-bar" id="srch-cust" placeholder="🔍 Code ya naam se dhundein..." oninput="renderCustomers()" style="margin-top:10px;">
+        <div class="data-list" id="cust-list-view"><div class="empty-state"><div class="empty-icon">👥</div>Koi customer nahi</div></div>
+      </div>
+
+      <!-- INVOICE / SALE MODULE -->
+      <div class="module-box" id="mod-invoice">
+        <h3>🧾 Invoice & Sale</h3>
+        <div id="inv-form-admin">
+          <!-- Customer Lookup -->
+          <div class="form-group">
+            <label>Customer Code</label>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="inv-cust-code" placeholder="MST-001 likhein..." style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+              <button onclick="lookupCustomer()" style="width:auto;padding:8px 14px;flex-shrink:0;">🔍</button>
+            </div>
+          </div>
+          <div id="inv-cust-info" style="display:none;" class="cust-found">
+            <div class="cf-name" id="inv-cname"></div>
+            <div class="cf-meta" id="inv-cmeta"></div>
+            <div class="cf-bal" id="inv-cbal"></div>
+          </div>
+
+          <!-- Invoice Items -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 4px;">
+            <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">Items</label>
+            <button onclick="addInvItem()" style="width:auto;padding:4px 10px;font-size:11px;">+ Add Item</button>
+          </div>
+          <div class="inv-items-box" id="inv-items-container">
+            <div class="inv-item-row" id="inv-item-0">
+              <select onchange="calcInvoice()" style="flex:2;"><option value="">-- Product --</option></select>
+              <input type="number" placeholder="Qty" min="1" value="1" oninput="calcInvoice()" style="max-width:60px;">
+              <input type="number" placeholder="Disc%" min="0" max="100" value="0" oninput="calcInvoice()" style="max-width:65px;">
+              <span class="input-suffix" style="position:static;transform:none;font-size:11px;color:var(--muted);">%</span>
+            </div>
+          </div>
+
+          <!-- Invoice Summary -->
+          <div class="inv-summary" id="inv-summary" style="display:none;">
+            <div class="inv-summary-row"><span>Gross Total</span><span id="inv-gross">0</span></div>
+            <div class="inv-summary-row"><span>Total Discount</span><span id="inv-disc" style="color:var(--sky);">0</span></div>
+            <div class="inv-summary-row"><span>Net Payable</span><span id="inv-net">PKR 0</span></div>
+          </div>
+
+          <div class="form-group" style="margin-top:8px;"><label>Note (Optional)</label><input type="text" id="inv-note" placeholder="Invoice note..."></div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button onclick="submitInvoice(false)" class="btn-success">💾 Save Invoice</button>
+            <button onclick="submitInvoice(true)" style="background:var(--purple);">🖨️ Save & Print</button>
+          </div>
+        </div>
+        <!-- Recent Invoices -->
+        <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Recent Invoices</div>
+        <div class="data-list">
+          <table><thead><tr><th>Inv#</th><th>Customer</th><th>Net</th><th>Date</th><th id="inv-del-th"></th></tr></thead>
+          <tbody id="inv-rows"></tbody></table>
+        </div>
+      </div>
+
+      <!-- CUSTOMER LEDGER -->
+      <div class="module-box" id="mod-ledger">
+        <h3>📒 Customer Ledger</h3>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <input type="text" id="ledger-code" class="search-bar" placeholder="Customer code daalen..." style="margin:0;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          <button onclick="loadLedger()" style="width:auto;padding:8px 14px;flex-shrink:0;">📒 Dekho</button>
+        </div>
+        <div id="ledger-cust-info" style="display:none;" class="cust-found">
+          <div class="cf-name" id="lci-name"></div>
+          <div class="cf-meta" id="lci-meta"></div>
+          <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap;">
+            <span style="font-size:12px;">Total Sales: <b id="lci-sales" style="color:var(--brand);">0</b></span>
+            <span style="font-size:12px;">Recovery: <b id="lci-rec" style="color:var(--success);">0</b></span>
+            <span style="font-size:12px;">Balance: <b id="lci-bal" style="color:var(--danger);">0</b></span>
+          </div>
+        </div>
+        <div class="data-list" id="ledger-rows-wrap" style="max-height:280px;">
+          <table><thead><tr><th>Date</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
+          <tbody id="ledger-rows"></tbody></table>
+        </div>
+      </div>
+
+      <!-- STOCK RETURN MODULE -->
+      <div class="module-box" id="mod-return">
+        <h3>↩️ Stock Return</h3>
+        <div id="return-form-admin">
+          <!-- Customer lookup -->
+          <div class="form-group">
+            <label>Customer Code</label>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="ret-cust-code" placeholder="MST-001" style="text-transform:uppercase;"
+                oninput="this.value=this.value.toUpperCase();" onblur="lookupReturnCustomer()">
+              <button onclick="lookupReturnCustomer()" style="width:auto;padding:8px 12px;flex-shrink:0;">🔍</button>
+            </div>
+            <div id="ret-cust-info" style="display:none;margin-top:6px;background:var(--bg);border-radius:8px;padding:8px 12px;">
+              <div id="ret-cust-name" style="font-size:13px;font-weight:700;color:var(--primary);"></div>
+              <div id="ret-cust-bal"  style="font-size:11px;font-weight:600;margin-top:2px;"></div>
+            </div>
+          </div>
+
+          <!-- Return items -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 4px;">
+            <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;">Return Items</label>
+            <button onclick="addReturnItem()" style="width:auto;padding:4px 10px;font-size:11px;">+ Item</button>
+          </div>
+          <div id="ret-items-container">
+            <div class="inv-item-row" id="ret-item-0">
+              <select onchange="calcReturn()" style="flex:2;"><option value="">-- Product --</option></select>
+              <input type="number" placeholder="Qty" min="1" value="1" oninput="calcReturn()" style="max-width:60px;">
+            </div>
+          </div>
+
+          <!-- Return summary -->
+          <div id="ret-summary" style="display:none;background:var(--warning-bg);border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin:8px 0;font-size:13px;">
+            <div style="display:flex;justify-content:space-between;"><span>Return Amount</span><span id="ret-amount" style="font-weight:700;color:var(--warning);">PKR 0</span></div>
+          </div>
+
+          <div class="form-group"><label>Note (Optional)</label>
+            <input type="text" id="ret-note" placeholder="Return ki wajah..."></div>
+          <button class="btn-warning" onclick="submitReturn()" style="background:var(--warning);">↩️ Return Process Karein</button>
+        </div>
+
+        <!-- Return history -->
+        <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Return History</div>
+        <div class="data-list">
+          <table><thead><tr><th>Customer</th><th>Items</th><th>Amount</th><th>Date</th><th id="ret-del-th"></th></tr></thead>
+          <tbody id="ret-rows"></tbody></table>
+        </div>
+      </div>
+
+    </div><!-- end module-grid -->
+  </div>
 </div>
 
 <script type="module">
-import { initializeApp }                          from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc,
-         collection, addDoc, onSnapshot,
-         deleteDoc, updateDoc, getDocs, query, orderBy }   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc,
+         onSnapshot, deleteDoc, updateDoc, getDocs, query, orderBy }
+  from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
-// ====== FIREBASE CONFIG ======
 const firebaseConfig = {
-    apiKey:            "AIzaSyBM-rmI21JoBlVeNOlEs6Gjix1zRNw2uDI",
-    authDomain:        "ms-traders-erp.firebaseapp.com",
-    projectId:         "ms-traders-erp",
-    storageBucket:     "ms-traders-erp.firebasestorage.app",
-    messagingSenderId: "444286214691",
-    appId:             "1:444286214691:web:caf851806e4d12d8944796"
+  apiKey:"AIzaSyBM-rmI21JoBlVeNOlEs6Gjix1zRNw2uDI",
+  authDomain:"ms-traders-erp.firebaseapp.com",
+  projectId:"ms-traders-erp",
+  storageBucket:"ms-traders-erp.firebasestorage.app",
+  messagingSenderId:"444286214691",
+  appId:"1:444286214691:web:caf851806e4d12d8944796"
 };
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
-// ====== STATE ======
-let currentRole     = null;
-let currentUsername = null;
-let deleteTarget    = null;
-let unsubscribers   = [];
+// ===== STATE =====
+let currentRole='', currentUsername='', deleteTarget=null, noteTarget=null, stockTarget=null;
+let unsubscribers=[];
+let allSales=[], allExpenses=[], allRecoveries=[], allProducts=[];
+let activeFilter='all', filterFrom=null, filterTo=null;
+let notifications=[], notifPanelOpen=false;
+let salesChartInst=null, expChartInst=null, compareChartInst=null;
 
-// ====== CLOCK ======
-setInterval(() => {
-    const el = document.getElementById('live-clock');
-    if(!el) return;
-    const n = new Date();
-    el.textContent = n.toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'2-digit'}) + '  ' +
-                     n.toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
-}, 1000);
+// ===== CLOCK =====
+setInterval(()=>{
+  const el=document.getElementById('live-clock'); if(!el) return;
+  const n=new Date();
+  el.textContent=n.toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'2-digit'})+'  '+
+    n.toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+},1000);
 
-// ====== HELPERS ======
-function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg; t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3000);
+// ===== HELPERS =====
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function show(id,d='block'){document.getElementById(id).style.display=d;}
+function hide(id){document.getElementById(id).style.display='none';}
+function getVal(id){return document.getElementById(id).value.trim();}
+function getNum(id){return parseFloat(document.getElementById(id).value)||0;}
+function clearF(...ids){ids.forEach(id=>{document.getElementById(id).value=''});}
+window.openModal=openModal; window.closeModal=closeModal;
+function nowStamp(){
+  const n=new Date();
+  return n.toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'})+' '+
+    n.toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit',hour12:true});
 }
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-window.openModal  = openModal;
-window.closeModal = closeModal;
+function todayISO(){return new Date().toISOString().split('T')[0];}
 
-function nowStamp() {
-    const n = new Date();
-    return n.toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}) + ' ' +
-           n.toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit',hour12:true});
+// ===== DATE FILTER =====
+function setFilter(type){
+  activeFilter=type;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  const map={all:0,today:1,week:2,month:3,custom:4};
+  const btns=document.querySelectorAll('.filter-btn');
+  if(type!=='custom' && btns[map[type]]) btns[map[type]].classList.add('active');
+  const lbl=document.getElementById('filter-label');
+  if(type==='custom'){
+    filterFrom=document.getElementById('filter-from').value||null;
+    filterTo=document.getElementById('filter-to').value||null;
+    lbl.textContent=filterFrom&&filterTo?`${filterFrom} → ${filterTo}`:'';
+  } else { filterFrom=null; filterTo=null; lbl.textContent=''; }
+  renderAll();
 }
-function getVal(id) { return document.getElementById(id).value.trim(); }
-function getNum(id) { return parseFloat(document.getElementById(id).value) || 0; }
-function clearF(...ids) { ids.forEach(id => { document.getElementById(id).value=''; }); }
-function show(id, d='block') { document.getElementById(id).style.display=d; }
-function hide(id)            { document.getElementById(id).style.display='none'; }
+window.setFilter=setFilter;
 
-// ====== HIDE LOADING ======
-function hideLoading() {
-    const ls = document.getElementById('loading-screen');
-    ls.style.opacity='0'; ls.style.transition='opacity 0.4s';
-    setTimeout(()=>{ ls.style.display='none'; show('auth-screen','flex'); }, 400);
+function inRange(dateStr){
+  if(!dateStr) return true;
+  try{
+    const d=new Date(dateStr);
+    if(activeFilter==='all') return true;
+    const now=new Date(), today=now.toISOString().split('T')[0];
+    if(activeFilter==='today') return dateStr.includes(today.slice(5,7))||d.toDateString()===now.toDateString();
+    if(activeFilter==='week'){const w=new Date(now);w.setDate(w.getDate()-7);return d>=w;}
+    if(activeFilter==='month'){return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}
+    if(activeFilter==='custom'){
+      if(filterFrom&&d<new Date(filterFrom)) return false;
+      if(filterTo&&d>new Date(filterTo+'T23:59:59')) return false;
+      return true;
+    }
+  }catch(e){}
+  return true;
 }
 
-// ====== AUTH TABS ======
-function switchTab(tab) {
-    document.querySelectorAll('.auth-tab').forEach((t,i) => {
-        t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register'));
+// ===== NOTIFICATIONS =====
+function addNotif(icon,title,msg){
+  notifications.unshift({icon,title,msg,time:nowStamp(),read:false});
+  if(notifications.length>50) notifications=notifications.slice(0,50);
+  renderNotifBadge();
+  if(document.getElementById('notif-panel').style.display!=='none') renderNotifPanel();
+}
+function renderNotifBadge(){
+  const unread=notifications.filter(n=>!n.read).length;
+  const cnt=document.getElementById('notif-count');
+  if(unread>0){cnt.textContent=unread;show('notif-count','inline');}else hide('notif-count');
+}
+function toggleNotifPanel(){
+  const p=document.getElementById('notif-panel');
+  if(p.style.display==='none'||!p.style.display){show('notif-panel');renderNotifPanel();notifications.forEach(n=>n.read=true);renderNotifBadge();}
+  else hide('notif-panel');
+}
+function renderNotifPanel(){
+  const el=document.getElementById('notif-list');
+  if(!notifications.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">🔔</div>Koi notification nahi</div>';return;}
+  el.innerHTML=notifications.map(n=>`<div class="notif-item ${n.read?'':'notif-unread'}">
+    <div class="notif-icon">${n.icon}</div>
+    <div class="notif-txt"><b>${n.title}</b><span>${n.msg} — ${n.time}</span></div>
+  </div>`).join('');
+}
+function clearNotifs(){notifications=[];renderNotifPanel();renderNotifBadge();}
+window.toggleNotifPanel=toggleNotifPanel; window.clearNotifs=clearNotifs;
+
+// ===== AUTH =====
+function switchTab(t){
+  document.querySelectorAll('.auth-tab').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='register')));
+  document.getElementById('panel-login').classList.toggle('active',t==='login');
+  document.getElementById('panel-register').classList.toggle('active',t==='register');
+}
+window.switchTab=switchTab;
+
+async function checkUsername(){
+  const u=getVal('reg-user'),el=document.getElementById('user-check');
+  if(!u){el.textContent='';return;}
+  if(u.length<3){el.style.color='var(--danger)';el.textContent='❌ Min 3 chars';return;}
+  if(!/^[a-zA-Z0-9_]+$/.test(u)){el.style.color='var(--danger)';el.textContent='❌ Invalid chars';return;}
+  if(u.toLowerCase()==='admin'){el.style.color='var(--danger)';el.textContent='❌ Reserved';return;}
+  const s=await getDoc(doc(db,'partnerRequests',u.toLowerCase()));
+  if(s.exists()){el.style.color='var(--danger)';el.textContent='❌ Already taken';}
+  else{el.style.color='var(--success)';el.textContent='✅ Available!';}
+}
+window.checkUsername=checkUsername;
+
+function checkPassStrength(){
+  const p=document.getElementById('reg-pass').value,el=document.getElementById('pass-strength');
+  if(!p){el.textContent='';return;}
+  if(p.length<6){el.style.color='var(--danger)';el.textContent='🔴 Too short';}
+  else if(p.length<9){el.style.color='var(--warning)';el.textContent='🟡 OK';}
+  else{el.style.color='var(--success)';el.textContent='🟢 Strong!';}
+}
+window.checkPassStrength=checkPassStrength;
+
+async function doRegister(){
+  hide('reg-err');hide('reg-success');
+  const roleType=getVal('reg-role'),uname=getVal('reg-user');
+  const pass=document.getElementById('reg-pass').value,confirm=document.getElementById('reg-confirm').value;
+  const e=document.getElementById('reg-err');
+  const err=(m)=>{e.textContent=m;show('reg-err');};
+  if(!uname||uname.length<3)return err('❌ Username min 3 chars!');
+  if(!/^[a-zA-Z0-9_]+$/.test(uname))return err('❌ Invalid username!');
+  if(uname.toLowerCase()==='admin')return err('❌ Reserved naam!');
+  if(pass.length<6)return err('❌ Password min 6 chars!');
+  if(pass!==confirm)return err('❌ Passwords match nahi!');
+  const s=await getDoc(doc(db,'partnerRequests',uname.toLowerCase()));
+  if(s.exists())return err('❌ Username already liya hua!');
+  await setDoc(doc(db,'partnerRequests',uname.toLowerCase()),{username:uname,password:pass,roleType,status:'pending',date:nowStamp()});
+  show('reg-success');clearF('reg-user','reg-pass','reg-confirm');
+  document.getElementById('user-check').textContent='';
+  document.getElementById('pass-strength').textContent='';
+  showToast('📨 Request bhej di!');
+}
+window.doRegister=doRegister;
+
+function onRoleChange(){
+  const role=getVal('login-role');
+  ['login-err','login-pending','login-rejected','grp-lu','grp-lp','btn-login'].forEach(hide);
+  clearF('login-user','login-pass');
+  if(role==='admin'){
+    getDoc(doc(db,'settings','admin')).then(s=>{
+      document.getElementById('login-user').value=s.exists()&&s.data().username?s.data().username:'admin';
     });
-    document.getElementById('panel-login').classList.toggle('active', tab==='login');
-    document.getElementById('panel-register').classList.toggle('active', tab==='register');
+    document.getElementById('login-user').readOnly=true;
+    document.getElementById('login-user').style.background='#f1f5f9';
+    show('grp-lu');show('grp-lp');show('btn-login');
+  }else if(role==='partner'||role==='coadmin'){
+    document.getElementById('login-user').readOnly=false;
+    document.getElementById('login-user').style.background='';
+    show('grp-lu');show('grp-lp');show('btn-login');
+  }
 }
-window.switchTab = switchTab;
+window.onRoleChange=onRoleChange;
 
-// ====== USERNAME CHECK ======
-async function checkUsername() {
-    const uname = getVal('reg-user');
-    const el    = document.getElementById('user-check');
-    if(!uname) { el.textContent=''; return; }
-    if(uname.length < 3)                       { el.style.color='var(--danger)'; el.textContent='❌ Min 3 chars'; return; }
-    if(!/^[a-zA-Z0-9_]+$/.test(uname))        { el.style.color='var(--danger)'; el.textContent='❌ Sirf letters, numbers, _'; return; }
-    if(uname.toLowerCase() === 'admin')        { el.style.color='var(--danger)'; el.textContent='❌ Reserved naam'; return; }
-    // Check Firestore
-    const snap = await getDoc(doc(db,'partnerRequests', uname.toLowerCase()));
-    if(snap.exists()) { el.style.color='var(--danger)'; el.textContent='❌ Username pehle se liya hua'; return; }
-    el.style.color='var(--success)'; el.textContent='✅ Available!';
+async function doLogin(){
+  const role=getVal('login-role'),uname=getVal('login-user'),pass=document.getElementById('login-pass').value;
+  ['login-err','login-pending','login-rejected'].forEach(hide);
+  if(!role||!uname||!pass){showToast('❌ Sab fields bharein!');return;}
+  if(role==='admin'){
+    const s=await getDoc(doc(db,'settings','admin'));
+    const ap=s.exists()?s.data().password:'admin123';
+    const au=s.exists()&&s.data().username?s.data().username:'admin';
+    if(uname===au&&pass===ap){currentRole='admin';currentUsername=au;loginSuccess();}
+    else show('login-err');
+    return;
+  }
+  if(role==='partner'||role==='coadmin'){
+    const s=await getDoc(doc(db,'partnerRequests',uname.toLowerCase()));
+    if(!s.exists()||s.data().password!==pass){show('login-err');return;}
+    const d=s.data();
+    if(d.roleType!==role){show('login-err');return;}
+    if(d.status==='pending'){show('login-pending');return;}
+    if(d.status==='rejected'){show('login-rejected');return;}
+    if(d.status==='approved'){currentRole=role;currentUsername=d.username;loginSuccess();}
+  }
 }
-window.checkUsername = checkUsername;
+window.doLogin=doLogin;
+document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
-function checkPassStrength() {
-    const p  = document.getElementById('reg-pass').value;
-    const el = document.getElementById('pass-strength');
-    if(!p)        { el.textContent=''; return; }
-    if(p.length<6){ el.style.color='var(--danger)';  el.textContent='🔴 Bahut chota'; return; }
-    if(p.length<9){ el.style.color='var(--warning)'; el.textContent='🟡 Theek hai'; return; }
-    el.style.color='var(--success)'; el.textContent='🟢 Strong!';
+function loginSuccess(){
+  hide('auth-screen');show('main-app');
+  document.getElementById('user-display-name').textContent=currentUsername;
+  const badge=document.getElementById('role-badge');
+  if(currentRole==='admin'){badge.textContent='ADMIN';badge.style.background='var(--brand2)';}
+  if(currentRole==='coadmin'){badge.textContent='CO-ADMIN';badge.style.background='var(--purple)';}
+  if(currentRole==='partner'){badge.textContent='PARTNER';badge.style.background='var(--success)';}
+  applyAccess();startListeners();
 }
-window.checkPassStrength = checkPassStrength;
+function logout(){
+  currentRole='';currentUsername='';
+  unsubscribers.forEach(u=>u());unsubscribers=[];
+  allSales=[];allExpenses=[];allRecoveries=[];allProducts=[];
+  document.getElementById('login-role').value='';
+  clearF('login-user','login-pass');
+  ['grp-lu','grp-lp','btn-login','login-err','login-pending','login-rejected'].forEach(hide);
+  hide('main-app');show('auth-screen','flex');switchTab('login');
+}
+window.logout=logout;
 
-// ====== REGISTER ======
-async function doRegister() {
-    hide('reg-err'); hide('reg-success');
-    const roleType = getVal('reg-role');
-    const uname    = getVal('reg-user');
-    const pass     = document.getElementById('reg-pass').value;
-    const confirm  = document.getElementById('reg-confirm').value;
-    const errEl    = document.getElementById('reg-err');
-    function err(msg){ errEl.textContent=msg; show('reg-err'); }
+// ===== ACCESS CONTROL =====
+function applyAccess(){
+  const isAdmin=currentRole==='admin';
+  const isCo=currentRole==='coadmin';
+  const isPartner=currentRole==='partner';
+  const canSeeAll=isAdmin||isCo;
+  const canEdit=isAdmin;
 
-    if(!uname)            { err('❌ Username likhein!'); return; }
-    if(uname.length<3)    { err('❌ Username min 3 chars!'); return; }
-    if(!/^[a-zA-Z0-9_]+$/.test(uname)) { err('❌ Invalid username!'); return; }
-    if(uname.toLowerCase()==='admin')   { err('❌ Reserved naam!'); return; }
-    if(pass.length<6)     { err('❌ Password min 6 chars!'); return; }
-    if(pass!==confirm)    { err('❌ Password match nahi!'); return; }
+  document.getElementById('req-panel').style.display=canSeeAll?'block':'none';
+  document.getElementById('btn-notif').style.display=canSeeAll?'':'none';
+  document.getElementById('btn-clear').style.display=isAdmin?'':'none';
+  document.getElementById('btn-chuser').style.display=isAdmin?'':'none';
+  document.getElementById('charts-section').style.display=canSeeAll?'':'none';
 
-    const snap = await getDoc(doc(db,'partnerRequests', uname.toLowerCase()));
-    if(snap.exists())     { err('❌ Username pehle se liya hua!'); return; }
+  ['card-gross','card-disc','card-cost','card-exp'].forEach(id=>{
+    document.getElementById(id).style.display=canSeeAll?'':'none';
+  });
+  document.getElementById('mod-products').style.display=canSeeAll?'':'none';
+  document.getElementById('mod-expenses').style.display=canSeeAll?'':'none';
+  document.getElementById('mod-exp-partner').style.display=isPartner?'':'none';
+  document.getElementById('sales-form-admin').style.display=canEdit?'':'none';
+  document.getElementById('s-del-th').style.display=canEdit?'':'none';
+  document.getElementById('rec-form-admin').style.display=canEdit?'':'none';
+  document.getElementById('r-del-th').style.display=canEdit?'':'none';
+  // Return module — Admin only (partner/coadmin can see history, only admin can process)
+  const retForm = document.getElementById('return-form-admin');
+  if(retForm) retForm.style.display = canEdit?'':'none';
+  const retDelTh = document.getElementById('ret-del-th');
+  if(retDelTh) retDelTh.style.display = canEdit?'':'none';
 
-    await setDoc(doc(db,'partnerRequests', uname.toLowerCase()), {
-        username: uname, password: pass,
-        roleType: roleType,
-        status: 'pending', date: nowStamp()
+  if(isCo){
+    setTimeout(()=>{
+      document.querySelectorAll('#mod-products button,#mod-expenses button').forEach(b=>{b.disabled=true;});
+      document.querySelectorAll('.del-btn').forEach(b=>{b.style.display='none';});
+    },500);
+  }
+}
+
+// ===== PARTNER APPROVAL =====
+async function approvePartner(u){await updateDoc(doc(db,'partnerRequests',u.toLowerCase()),{status:'approved'});showToast('✅ '+u+' approved!');}
+async function rejectPartner(u){await updateDoc(doc(db,'partnerRequests',u.toLowerCase()),{status:'rejected'});showToast('❌ '+u+' rejected.');}
+window.approvePartner=approvePartner; window.rejectPartner=rejectPartner;
+
+// ===== PASSWORD & USERNAME =====
+async function changePassword(){
+  const oldP=document.getElementById('cp-old').value,newP=document.getElementById('cp-new').value,conf=document.getElementById('cp-confirm').value;
+  const err=document.getElementById('cp-error');err.style.display='none';
+  if(newP.length<6){err.textContent='❌ Min 6 chars!';err.style.display='block';return;}
+  if(newP!==conf){err.textContent='❌ Match nahi!';err.style.display='block';return;}
+  if(currentRole==='admin'){
+    const s=await getDoc(doc(db,'settings','admin'));const cur=s.exists()?s.data().password:'admin123';
+    if(oldP!==cur){err.textContent='❌ Galat purana password!';err.style.display='block';return;}
+    const un=s.exists()&&s.data().username?s.data().username:'admin';
+    await setDoc(doc(db,'settings','admin'),{password:newP,username:un});
+  }else{
+    const s=await getDoc(doc(db,'partnerRequests',currentUsername.toLowerCase()));
+    if(!s.exists()||oldP!==s.data().password){err.textContent='❌ Galat purana password!';err.style.display='block';return;}
+    await updateDoc(doc(db,'partnerRequests',currentUsername.toLowerCase()),{password:newP});
+  }
+  closeModal('modal-changepass');clearF('cp-old','cp-new','cp-confirm');showToast('🔑 Password change ho gaya!');
+}
+window.changePassword=changePassword;
+
+function openChangeUsername(){
+  document.getElementById('cu-current').value=currentUsername;
+  clearF('cu-new','cu-pass');document.getElementById('cu-error').style.display='none';
+  openModal('modal-changeuser');
+}
+window.openChangeUsername=openChangeUsername;
+
+async function changeUsername(){
+  const newN=document.getElementById('cu-new').value.trim(),pass=document.getElementById('cu-pass').value;
+  const err=document.getElementById('cu-error');err.style.display='none';
+  if(!newN||newN.length<3){err.textContent='❌ Min 3 chars!';err.style.display='block';return;}
+  if(!/^[a-zA-Z0-9_]+$/.test(newN)){err.textContent='❌ Invalid!';err.style.display='block';return;}
+  if(newN===currentUsername){err.textContent='❌ Same username hai!';err.style.display='block';return;}
+  const s=await getDoc(doc(db,'settings','admin'));const ap=s.exists()?s.data().password:'admin123';
+  if(pass!==ap){err.textContent='❌ Password galat!';err.style.display='block';return;}
+  await setDoc(doc(db,'settings','admin'),{password:ap,username:newN});
+  currentUsername=newN;document.getElementById('user-display-name').textContent=newN;
+  closeModal('modal-changeuser');showToast('✅ Username: '+newN);
+}
+window.changeUsername=changeUsername;
+
+// ===== DELETE =====
+function requestDelete(type,id){deleteTarget={type,id};openModal('modal-delete');}
+async function confirmDelete(){
+  if(!deleteTarget)return;
+  const{type,id}=deleteTarget;
+  const map={sale:'sales',expense:'expenses',recovery:'recoveries',product:'products',invoice:'invoices',return:'returns'};
+  if(type==='customer'){ await deleteDoc(doc(db,'customers',id)); }
+  else if(map[type]){ await deleteDoc(doc(db,map[type],id)); }
+  deleteTarget=null;closeModal('modal-delete');showToast('🗑️ Delete ho gaya!');
+}
+window.requestDelete=requestDelete; window.confirmDelete=confirmDelete;
+
+// ===== NOTES =====
+function openNote(type,id,currentNote){
+  noteTarget={type,id};
+  document.getElementById('note-modal-title').textContent='💬 Note — '+type;
+  document.getElementById('note-text').value=currentNote||'';
+  openModal('modal-note');
+}
+async function saveNote(){
+  if(!noteTarget)return;
+  const{type,id}=noteTarget;
+  const map={sale:'sales',expense:'expenses',recovery:'recoveries'};
+  const note=document.getElementById('note-text').value.trim();
+  await updateDoc(doc(db,map[type],id),{note});
+  closeModal('modal-note');showToast('💬 Note save ho gaya!');
+}
+window.openNote=openNote; window.saveNote=saveNote;
+
+// ===== STOCK =====
+function openStock(productId,productName){
+  stockTarget=productId;
+  document.getElementById('stock-prod-name').textContent='📦 '+productName;
+  document.getElementById('stock-qty').value='';
+  openModal('modal-stock');
+}
+async function saveStock(){
+  if(!stockTarget)return;
+  const qty=parseInt(document.getElementById('stock-qty').value)||0;
+  await updateDoc(doc(db,'products',stockTarget),{stock:qty});
+  stockTarget=null;closeModal('modal-stock');showToast('📦 Stock update ho gaya!');
+}
+window.openStock=openStock; window.saveStock=saveStock;
+
+// ===== DISCOUNT PREVIEW =====
+let productsCache={};
+function updateDiscPreview(){
+  const pId=getVal('s-product'),qty=parseInt(document.getElementById('s-qty').value)||0;
+  const disc=parseFloat(document.getElementById('s-disc').value)||0;
+  const prod=productsCache[pId],prev=document.getElementById('disc-preview');
+  if(prod&&qty>0&&disc>0){const g=prod.price*qty,d=g*disc/100,n=g-d;prev.textContent=`Gross: ${g.toLocaleString()} → Disc: ${d.toLocaleString()} → Net: ${n.toLocaleString()}`;}
+  else prev.textContent='';
+}
+window.updateDiscPreview=updateDiscPreview;
+
+// ===== ADD FUNCTIONS =====
+async function addProduct(){
+  const brand=getVal('p-brand'),name=getVal('p-name'),cost=getNum('p-cost'),price=getNum('p-price');
+  const stock=parseInt(document.getElementById('p-stock').value)||0;
+  const expiry=document.getElementById('p-expiry').value||''; // format: YYYY-MM
+  if(!brand){showToast('❌ Company select karein!');return;}
+  if(!name){showToast('❌ Naam likhein!');return;}
+  if(price<=0){showToast('❌ Sale price daalen!');return;}
+  await addDoc(collection(db,'products'),{brand,name,cost,price,stock,expiry,date:nowStamp()});
+  clearF('p-name','p-cost','p-price','p-stock');
+  document.getElementById('p-expiry').value='';
+  showToast('✅ Product add: '+name);
+}
+window.addProduct=addProduct;
+
+async function addSale(){
+  const pId=getVal('s-product'),qty=parseInt(document.getElementById('s-qty').value)||0;
+  const discPct=parseFloat(document.getElementById('s-disc').value)||0,note=getVal('s-note');
+  if(!pId){showToast('❌ Product select karein!');return;}
+  if(qty<=0){showToast('❌ Quantity daalen!');return;}
+  const prod=productsCache[pId];if(!prod)return;
+  // Check stock
+  const curStock=prod.stock||0;
+  if(curStock>0&&qty>curStock){showToast('❌ Stock mein sirf '+curStock+' units hain!');return;}
+  const gross=prod.price*qty,discAmt=gross*discPct/100;
+  await addDoc(collection(db,'sales'),{prodName:`[${prod.brand}] ${prod.name}`,prodId:pId,qty,costTotal:prod.cost*qty,grossTotal:gross,discPct,discountAmt:discAmt,netRevenue:gross-discAmt,note,date:nowStamp()});
+  // Deduct stock
+  if(curStock>0){const newStock=Math.max(0,curStock-qty);await updateDoc(doc(db,'products',pId),{stock:newStock});}
+  clearF('s-qty','s-note');document.getElementById('s-disc').value='0';document.getElementById('disc-preview').textContent='';
+  showToast('✅ Sale log ho gai!');
+  if(curStock>0&&(curStock-qty)<=100) addNotif('⚠️','Low Stock Alert',`[${prod.brand}] ${prod.name} sirf ${curStock-qty} units bachi hain!`);
+}
+window.addSale=addSale;
+
+async function addExpense(){
+  const type=getVal('e-type'),amount=getNum('e-amount'),desc=getVal('e-desc'),note=getVal('e-note');
+  if(amount<=0){showToast('❌ Amount daalen!');return;}
+  if(!desc){showToast('❌ Details likhein!');return;}
+  await addDoc(collection(db,'expenses'),{type,amount,desc,note,date:nowStamp()});
+  clearF('e-amount','e-desc','e-note');showToast('✅ Expense record ho gaya!');
+  if(amount>=10000) addNotif('💸','Bara Expense',`${type}: PKR ${amount.toLocaleString()} — ${desc}`);
+}
+window.addExpense=addExpense;
+
+async function addRecovery(){
+  const desc=getVal('r-desc'),amount=getNum('r-amount'),note=getVal('r-note');
+  if(!desc){showToast('❌ Party naam likhein!');return;}
+  if(amount<=0){showToast('❌ Amount daalen!');return;}
+  await addDoc(collection(db,'recoveries'),{desc,amount,note,date:nowStamp()});
+  clearF('r-desc','r-amount','r-note');showToast('✅ Recovery record ho gai!');
+}
+window.addRecovery=addRecovery;
+
+// ===== RENDER =====
+function getExpiryInfo(expiry){
+  if(!expiry) return null;
+  const now = new Date();
+  const exp = new Date(expiry+'-01'); // YYYY-MM → first of month
+  const diffMs = exp - now;
+  const diffDays = Math.floor(diffMs / (1000*60*60*24));
+  const diffMonths = Math.floor(diffDays/30);
+  if(diffDays < 0) return { label:'Expired!', cls:'stock-out', months: diffMonths };
+  if(diffMonths <= 7) return { label:`Expiry: ${diffMonths}m`, cls:'stock-low', months: diffMonths };
+  return { label:`Exp: ${expiry}`, cls:'stock-ok', months: diffMonths };
+}
+
+function renderProducts(){
+  const srch=(document.getElementById('srch-prod').value||'').toLowerCase();
+  const isAdmin=currentRole==='admin',isCo=currentRole==='coadmin';
+  const canSeeAll=isAdmin||isCo,canEdit=isAdmin;
+  const listEl=document.getElementById('product-list-view'),dropEl=document.getElementById('s-product');
+  listEl.innerHTML='';dropEl.innerHTML='';
+  const filtered=allProducts.filter(p=>!srch||(p.name+p.brand).toLowerCase().includes(srch));
+  if(!filtered.length){
+    listEl.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div>Koi product nahi</div>';
+    dropEl.innerHTML='<option value="">-- Product add karein --</option>';return;
+  }
+  filtered.forEach(p=>{
+    productsCache[p.id]=p;
+    const stock=p.stock||0;
+    const sClass=stock===0?'stock-out':stock<=100?'stock-low':'stock-ok';
+    const sLabel=stock===0?'Out of Stock':stock<=100?`⚠️ Low: ${stock}`:`In Hand: ${stock}`;
+    const exInfo = getExpiryInfo(p.expiry);
+    const exBadge = exInfo ? `<span class="stock-badge ${exInfo.cls}" title="Expiry: ${p.expiry}">📅 ${exInfo.label}</span>` : '';
+    listEl.innerHTML+=`<div class="list-item" style="flex-wrap:wrap;gap:4px;">
+      <div style="flex:1;min-width:160px;">
+        <span style="color:var(--muted);font-size:10px">[${p.brand}]</span> <b>${p.name}</b>
+        ${canSeeAll?`<br><span style="font-size:10px;color:var(--muted)">Cost:${p.cost.toLocaleString()} | Sale:${p.price.toLocaleString()}</span>`:''}
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+        <span class="stock-badge ${sClass}">${sLabel}</span>
+        ${exBadge}
+        ${canEdit?`<button class="del-btn" style="font-size:10px;padding:2px 6px;" onclick="openStock('${p.id}','${p.name}')">📦 Stock</button>`:''}
+        ${canEdit?`<button class="del-btn" onclick="requestDelete('product','${p.id}')">🗑</button>`:''}
+      </div>
+    </div>`;
+    dropEl.innerHTML+=`<option value="${p.id}">[${p.brand}] ${p.name} (${p.price}) — Stock:${stock}</option>`;
+  });
+}
+
+function renderSales(){
+  const srch=(document.getElementById('srch-sales').value||'').toLowerCase();
+  const isAdmin=currentRole==='admin';
+  const rows=document.getElementById('sales-rows');rows.innerHTML='';
+  let tG=0,tD=0,tN=0,tC=0;
+  const filtered=allSales.filter(s=>inRange(s.date)&&(!srch||s.prodName.toLowerCase().includes(srch)));
+  if(!filtered.length){rows.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📈</div>Koi sale nahi</div></td></tr>';return;}
+  filtered.forEach(s=>{
+    tG+=s.grossTotal;tD+=s.discountAmt;tN+=s.netRevenue;tC+=s.costTotal;
+    rows.innerHTML+=`<tr>
+      <td><b>${s.prodName}</b></td><td>${s.qty}</td>
+      <td style="color:#6366f1">${s.grossTotal.toLocaleString()}</td>
+      <td style="color:var(--sky)">${s.discPct}%</td>
+      <td style="color:var(--brand);font-weight:700">${s.netRevenue.toLocaleString()}</td>
+      <td>${s.note?`<span class="note-chip" onclick="openNote('sale','${s.id}','${s.note||''}')">💬 ${s.note}</span>`:`<button class="del-btn" style="font-size:10px" onclick="openNote('sale','${s.id}','')">+Note</button>`}</td>
+      <td><span class="date-chip">${s.date||''}</span></td>
+      <td>${isAdmin?`<button class="del-btn" onclick="requestDelete('sale','${s.id}')">🗑</button>`:''}</td>
+    </tr>`;
+  });
+  window._sales={tG,tD,tN,tC};updateSummaryCards();
+}
+
+function renderExpenses(){
+  const isAdmin=currentRole==='admin';
+  const rows=document.getElementById('exp-rows');rows.innerHTML='';
+  let tE=0;
+  const filtered=allExpenses.filter(e=>inRange(e.date));
+  if(!filtered.length){rows.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">💸</div>Koi expense nahi</div></td></tr>';}
+  filtered.forEach(e=>{
+    tE+=e.amount;
+    rows.innerHTML+=`<tr>
+      <td><b style="color:var(--danger)">${e.type}</b></td><td>${e.desc}</td>
+      <td>${e.amount.toLocaleString()}</td>
+      <td>${e.note?`<span class="note-chip" onclick="openNote('expense','${e.id}','${e.note||''}')">💬 ${e.note}</span>`:`<button class="del-btn" style="font-size:10px" onclick="openNote('expense','${e.id}','')">+Note</button>`}</td>
+      <td><span class="date-chip">${e.date||''}</span></td>
+      <td>${isAdmin?`<button class="del-btn" onclick="requestDelete('expense','${e.id}')">🗑</button>`:''}</td>
+    </tr>`;
+  });
+  const ptEl=document.getElementById('partner-exp-total');if(ptEl)ptEl.textContent=tE.toLocaleString();
+  window._tE=tE;updateSummaryCards();
+}
+
+function renderRecovery(){
+  const srch=(document.getElementById('srch-rec').value||'').toLowerCase();
+  const isAdmin=currentRole==='admin';
+  const rows=document.getElementById('rec-rows');rows.innerHTML='';
+  let tR=0;
+  const filtered=allRecoveries.filter(r=>inRange(r.date)&&(!srch||r.desc.toLowerCase().includes(srch)));
+  if(!filtered.length){rows.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">💰</div>Koi recovery nahi</div></td></tr>';}
+  filtered.forEach(r=>{
+    tR+=r.amount;
+    rows.innerHTML+=`<tr>
+      <td><b>${r.desc}</b></td>
+      <td style="color:var(--success)">+${r.amount.toLocaleString()}</td>
+      <td>${r.note?`<span class="note-chip" onclick="openNote('recovery','${r.id}','${r.note||''}')">💬 ${r.note}</span>`:`<button class="del-btn" style="font-size:10px" onclick="openNote('recovery','${r.id}','')">+Note</button>`}</td>
+      <td><span class="date-chip">${r.date||''}</span></td>
+      <td>${isAdmin?`<button class="del-btn" onclick="requestDelete('recovery','${r.id}')">🗑</button>`:''}</td>
+    </tr>`;
+  });
+  window._tR=tR;updateSummaryCards();
+}
+
+function renderAll(){renderProducts();renderSales();renderExpenses();renderRecovery();updateCharts();}
+window.renderProducts=renderProducts;window.renderSales=renderSales;window.renderRecovery=renderRecovery;
+
+// ===== SUMMARY =====
+window._sales={tG:0,tD:0,tN:0,tC:0};window._tE=0;window._tR=0;
+function updateSummaryCards(){
+  const{tG,tD,tN,tC}=window._sales||{};
+  const tE=window._tE||0,tR=window._tR||0;
+  const credit=Math.max(0,(tN||0)-tR),pl=(tN||0)-((tC||0)+tE);
+  document.getElementById('log-gross').textContent=(tG||0).toLocaleString();
+  document.getElementById('log-disc').textContent=(tD||0).toLocaleString();
+  document.getElementById('log-net').textContent=(tN||0).toLocaleString();
+  document.getElementById('log-cost').textContent=(tC||0).toLocaleString();
+  document.getElementById('log-exp').textContent=tE.toLocaleString();
+  document.getElementById('log-rec').textContent=tR.toLocaleString();
+  document.getElementById('log-credit').textContent=credit.toLocaleString();
+  document.getElementById('log-pl').textContent=(pl>=0?'+ ':'')+pl.toLocaleString();
+  const plCard=document.getElementById('pl-card'),plTitle=document.getElementById('pl-title'),plVal=document.getElementById('log-pl');
+  if(pl>=0){plTitle.textContent='⭐ Net Profit';plCard.className='sum-card profit';plVal.style.color='var(--success)';}
+  else{plTitle.textContent='⚠️ Net Loss';plCard.className='sum-card loss';plVal.style.color='var(--danger)';}
+}
+
+// ===== CHARTS =====
+function updateCharts(){
+  if(currentRole==='partner') return;
+  // Sales trend (last 7 entries)
+  const salesData=allSales.filter(s=>inRange(s.date)).slice(-7);
+  const sLabels=salesData.map(s=>s.date?s.date.split(' ')[0]:'');
+  const sNets=salesData.map(s=>s.netRevenue||0);
+  const sGross=salesData.map(s=>s.grossTotal||0);
+
+  if(salesChartInst){salesChartInst.destroy();}
+  const sCtx=document.getElementById('chart-sales');
+  if(sCtx){salesChartInst=new Chart(sCtx,{type:'line',data:{labels:sLabels,datasets:[
+    {label:'Net Sale',data:sNets,borderColor:'#1e40af',backgroundColor:'rgba(30,64,175,.1)',tension:.4,fill:true},
+    {label:'Gross Sale',data:sGross,borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.05)',tension:.4,borderDash:[4,4]}
+  ]},options:{responsive:true,plugins:{legend:{labels:{font:{size:11}}}},scales:{y:{ticks:{callback:v=>v.toLocaleString()}}}}});}
+
+  // Expense pie
+  const expByType={};
+  allExpenses.filter(e=>inRange(e.date)).forEach(e=>{expByType[e.type]=(expByType[e.type]||0)+e.amount;});
+  if(expChartInst){expChartInst.destroy();}
+  const eCtx=document.getElementById('chart-exp');
+  if(eCtx&&Object.keys(expByType).length){expChartInst=new Chart(eCtx,{type:'doughnut',data:{labels:Object.keys(expByType),datasets:[{data:Object.values(expByType),backgroundColor:['#1e40af','#dc2626','#d97706','#059669','#7c3aed']}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}}});}
+
+  // Compare bar
+  const {tG=0,tN=0}=window._sales||{};const tR=window._tR||0;
+  if(compareChartInst){compareChartInst.destroy();}
+  const cCtx=document.getElementById('chart-compare');
+  if(cCtx){compareChartInst=new Chart(cCtx,{type:'bar',data:{labels:['Gross Sale','Net Sale','Cash Recovery'],datasets:[{data:[tG,tN,tR],backgroundColor:['#6366f1','#1e40af','#059669'],borderRadius:6}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v.toLocaleString()}}}}});}
+}
+
+// ===== CLEAR HISTORY =====
+async function confirmClear(){
+  const cs=document.getElementById('clr-sales').checked,ce=document.getElementById('clr-expenses').checked,cr=document.getElementById('clr-recovery').checked;
+  if(!cs&&!ce&&!cr){showToast('❌ Kuch select nahi!');return;}
+  const delAll=async(col)=>{const s=await getDocs(collection(db,col));await Promise.all(s.docs.map(d=>deleteDoc(doc(db,col,d.id))));};
+  if(cs)await delAll('sales');if(ce)await delAll('expenses');if(cr)await delAll('recoveries');
+  closeModal('modal-clear');showToast('✅ History clear!');
+}
+window.confirmClear=confirmClear;
+
+// ===== EXPORT PDF =====
+function exportPDF(){
+  const{tG=0,tD=0,tN=0,tC=0}=window._sales||{};const tE=window._tE||0,tR=window._tR||0;
+  const credit=Math.max(0,tN-tR),pl=tN-(tC+tE),plColor=pl>=0?'#059669':'#dc2626',plLabel=pl>=0?'Net Profit':'Net Loss';
+  const now=new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'});
+
+  let sRows='';allSales.filter(s=>inRange(s.date)).forEach(s=>{
+    sRows+=`<tr><td>${s.prodName}</td><td>${s.qty}</td><td>${s.grossTotal.toLocaleString()}</td><td>${s.discPct}%</td><td>${s.netRevenue.toLocaleString()}</td><td>${s.note||'-'}</td><td>${s.date||''}</td></tr>`;
+  });
+  let eRows='';if(currentRole==='admin')allExpenses.filter(e=>inRange(e.date)).forEach(e=>{
+    eRows+=`<tr><td>${e.type}</td><td>${e.desc}</td><td>${e.amount.toLocaleString()}</td><td>${e.note||'-'}</td><td>${e.date||''}</td></tr>`;
+  });
+  let rRows='';allRecoveries.filter(r=>inRange(r.date)).forEach(r=>{
+    rRows+=`<tr><td>${r.desc}</td><td>+${r.amount.toLocaleString()}</td><td>${r.note||'-'}</td><td>${r.date||''}</td></tr>`;
+  });
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>MS Traders Report</title>
+  <style>body{font-family:Arial,sans-serif;padding:24px;font-size:12px;color:#1e293b;}h1{font-size:20px;font-weight:800;letter-spacing:2px;margin:0;}
+  .sub{color:#64748b;margin-bottom:20px;font-size:11px;}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+  .card{background:#f8fafc;border-radius:8px;padding:12px;border-top:3px solid #cbd5e1;}
+  .card.blue{border-top-color:#1e40af;}.card.green{border-top-color:#059669;background:#ecfdf5;}.card.red{border-top-color:#dc2626;background:#fef2f2;}
+  .ct{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;}.cv{font-size:16px;font-weight:800;margin-top:3px;}
+  h2{font-size:13px;font-weight:700;margin:16px 0 8px;border-bottom:2px solid #e2e8f0;padding-bottom:5px;}
+  table{width:100%;border-collapse:collapse;font-size:11px;}th,td{padding:6px 8px;text-align:left;border-bottom:1px solid #e2e8f0;}
+  th{background:#f1f5f9;font-weight:700;color:#64748b;text-transform:uppercase;font-size:10px;}
+  .footer{margin-top:24px;text-align:center;font-size:10px;color:#94a3b8;}
+  @media print{body{padding:12px;}}</style></head><body>
+  <h1>MS TRADERS</h1><div class="sub">ERP Report — ${now} | User: ${currentUsername}</div>
+  <div class="cards">
+    <div class="card"><div class="ct">Gross Sale</div><div class="cv" style="color:#6366f1">PKR ${tG.toLocaleString()}</div></div>
+    <div class="card blue"><div class="ct">Net Sale</div><div class="cv" style="color:#1e40af">PKR ${tN.toLocaleString()}</div></div>
+    <div class="card"><div class="ct">Discount</div><div class="cv" style="color:var(--sky)">PKR ${tD.toLocaleString()}</div></div>
+    ${currentRole==='admin'?`<div class="card"><div class="ct">Product Cost</div><div class="cv">PKR ${tC.toLocaleString()}</div></div>
+    <div class="card red"><div class="ct">Expenses</div><div class="cv" style="color:#dc2626">PKR ${tE.toLocaleString()}</div></div>`:''}
+    <div class="card green"><div class="ct">Recovery</div><div class="cv" style="color:#059669">PKR ${tR.toLocaleString()}</div></div>
+    <div class="card"><div class="ct">Market Credit</div><div class="cv" style="color:#d97706">PKR ${credit.toLocaleString()}</div></div>
+    <div class="card ${pl>=0?'green':'red'}"><div class="ct">${plLabel}</div><div class="cv" style="color:${plColor}">PKR ${Math.abs(pl).toLocaleString()}</div></div>
+  </div>
+  <h2>📈 Sales</h2><table><thead><tr><th>Product</th><th>Qty</th><th>Gross</th><th>Disc%</th><th>Net</th><th>Note</th><th>Date</th></tr></thead><tbody>${sRows||'<tr><td colspan="7" style="text-align:center;color:#94a3b8">Koi record nahi</td></tr>'}</tbody></table>
+  ${currentRole==='admin'?`<h2>💸 Expenses</h2><table><thead><tr><th>Type</th><th>Details</th><th>Amount</th><th>Note</th><th>Date</th></tr></thead><tbody>${eRows||'<tr><td colspan="5" style="text-align:center;color:#94a3b8">Koi record nahi</td></tr>'}</tbody></table>`:''}
+  <h2>💰 Recovery</h2><table><thead><tr><th>Party</th><th>Amount</th><th>Note</th><th>Date</th></tr></thead><tbody>${rRows||'<tr><td colspan="4" style="text-align:center;color:#94a3b8">Koi record nahi</td></tr>'}</tbody></table>
+  <div class="footer">MS Traders ERP — ${now}</div>
+  <script>window.onload=()=>window.print();<\/script></body></html>`;
+  const w=window.open('','_blank');w.document.write(html);w.document.close();
+}
+window.exportPDF=exportPDF;
+
+// ===== CUSTOMERS =====
+let allCustomers={};
+let invItemCount=1;
+
+function autoCustomerCode(){
+  const existing=Object.values(allCustomers);
+  let max=0;
+  existing.forEach(c=>{const n=parseInt((c.code||'').replace(/[^0-9]/g,''));if(!isNaN(n)&&n>max)max=n;});
+  const num=String(max+1).padStart(3,'0');
+  return 'MST-'+num;
+}
+
+async function addCustomer(){
+  const name=getVal('c-name'),phone=getVal('c-phone'),area=getVal('c-area'),addr=getVal('c-addr');
+  let code=getVal('c-code').toUpperCase();
+  if(!name){showToast('❌ Customer naam likhein!');return;}
+  if(!code) code=autoCustomerCode();
+  // Check duplicate code
+  const snap=await getDoc(doc(db,'customers',code));
+  if(snap.exists()){showToast('❌ Yeh code pehle se liya hua hai!');return;}
+  await setDoc(doc(db,'customers',code),{name,code,phone,area,addr,balance:0,totalSales:0,totalRecovery:0,date:nowStamp()});
+  clearF('c-name','c-code','c-phone','c-area','c-addr');
+  showToast('✅ Customer add ho gaya! Code: '+code);
+}
+window.addCustomer=addCustomer;
+
+function renderCustomers(){
+  const srch=(document.getElementById('srch-cust').value||'').toLowerCase();
+  const el=document.getElementById('cust-list-view');
+  const list=Object.values(allCustomers).filter(c=>!srch||(c.name+c.code+c.area).toLowerCase().includes(srch));
+  if(!list.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div>Koi customer nahi</div>';return;}
+  el.innerHTML=list.map(c=>{
+    const bal=c.balance||0;
+    const balColor=bal>0?'var(--warning)':bal<0?'var(--success)':'var(--muted)';
+    const balTxt=bal>0?`Udhaar: PKR ${bal.toLocaleString()}`:bal<0?`Advance: PKR ${Math.abs(bal).toLocaleString()}`:'Clear';
+    return `<div class="list-item" style="flex-direction:column;align-items:flex-start;gap:4px;">
+      <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+        <div>
+          <span style="background:var(--brand);color:white;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;margin-right:6px;">${c.code}</span>
+          <b>${c.name}</b>
+          ${c.area?`<span style="font-size:10px;color:var(--muted);margin-left:4px;">📍${c.area}</span>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span style="font-size:11px;font-weight:700;color:${balColor}">${balTxt}</span>
+          ${currentRole==='admin'?`<button class="del-btn" onclick="requestDelete('customer','${c.code}')">🗑</button>`:''}
+        </div>
+      </div>
+      ${c.phone?`<span style="font-size:10px;color:var(--muted);">📞 ${c.phone}</span>`:''}
+    </div>`;
+  }).join('');
+}
+window.renderCustomers=renderCustomers;
+
+// ===== INVOICE =====
+function addInvItem(){
+  invItemCount++;
+  const cont=document.getElementById('inv-items-container');
+  const row=document.createElement('div');
+  row.className='inv-item-row'; row.id='inv-item-'+(invItemCount-1);
+  // Build product options
+  const opts=Object.values(allCustomers).length?
+    allProducts.map(p=>`<option value="${p.id}">[${p.brand}] ${p.name} (PKR ${p.price})</option>`).join(''):'';
+  row.innerHTML=`
+    <select onchange="calcInvoice()" style="flex:2;">
+      <option value="">-- Product --</option>
+      ${Object.values(productsCache).map(p=>`<option value="${p.id}">[${p.brand}] ${p.name} (${p.price})</option>`).join('')}
+    </select>
+    <input type="number" placeholder="Qty" min="1" value="1" oninput="calcInvoice()" style="max-width:60px;">
+    <input type="number" placeholder="Disc%" min="0" max="100" value="0" oninput="calcInvoice()" style="max-width:65px;">
+    <span style="font-size:11px;color:var(--muted);">%</span>
+    <button class="del-btn" onclick="this.parentElement.remove();calcInvoice();" style="flex-shrink:0;">✕</button>`;
+  cont.appendChild(row);
+  // populate first row dropdowns too
+  rebuildProductDropdowns();
+  calcInvoice();
+}
+window.addInvItem=addInvItem;
+
+function rebuildProductDropdowns(){
+  document.querySelectorAll('.inv-item-row select').forEach(sel=>{
+    const cur=sel.value;
+    sel.innerHTML='<option value="">-- Product --</option>'+
+      Object.values(productsCache).map(p=>`<option value="${p.id}">[${p.brand}] ${p.name} (${p.price})</option>`).join('');
+    if(cur) sel.value=cur;
+  });
+}
+
+function calcInvoice(){
+  let gross=0,disc=0;
+  document.querySelectorAll('.inv-item-row').forEach(row=>{
+    const sel=row.querySelector('select');
+    const qtyEl=row.querySelectorAll('input')[0];
+    const dEl=row.querySelectorAll('input')[1];
+    if(!sel||!sel.value)return;
+    const prod=productsCache[sel.value];
+    if(!prod)return;
+    const qty=parseInt(qtyEl?.value)||1;
+    const dp=parseFloat(dEl?.value)||0;
+    const g=prod.price*qty;
+    gross+=g; disc+=g*dp/100;
+  });
+  const net=gross-disc;
+  const sumEl=document.getElementById('inv-summary');
+  if(gross>0){
+    sumEl.style.display='block';
+    document.getElementById('inv-gross').textContent='PKR '+gross.toLocaleString();
+    document.getElementById('inv-disc').textContent='PKR '+disc.toLocaleString();
+    document.getElementById('inv-net').textContent='PKR '+net.toLocaleString();
+  } else { sumEl.style.display='none'; }
+}
+window.calcInvoice=calcInvoice;
+
+async function lookupCustomer(){
+  const code=document.getElementById('inv-cust-code').value.trim().toUpperCase();
+  if(!code){showToast('❌ Code daalen!');return;}
+  const snap=await getDoc(doc(db,'customers',code));
+  if(!snap.exists()){
+    hide('inv-cust-info');
+    showToast('❌ Customer nahi mila: '+code); return;
+  }
+  const c=snap.data();
+  allCustomers[code]=c;
+  document.getElementById('inv-cname').textContent=c.name;
+  document.getElementById('inv-cmeta').textContent=(c.phone||'')+' '+(c.area?'| '+c.area:'');
+  const bal=c.balance||0;
+  document.getElementById('inv-cbal').textContent=bal>0?`⚠️ Pending Udhaar: PKR ${bal.toLocaleString()}`:bal===0?'✅ Account Clear':`✅ Advance: PKR ${Math.abs(bal).toLocaleString()}`;
+  document.getElementById('inv-cbal').style.color=bal>0?'var(--warning)':'var(--success)';
+  show('inv-cust-info');
+  rebuildProductDropdowns();
+}
+window.lookupCustomer=lookupCustomer;
+
+async function submitInvoice(andPrint){
+  const code=document.getElementById('inv-cust-code').value.trim().toUpperCase();
+  const note=getVal('inv-note');
+  if(!code){showToast('❌ Customer code daalen!');return;}
+  const custSnap=await getDoc(doc(db,'customers',code));
+  if(!custSnap.exists()){showToast('❌ Customer nahi mila!');return;}
+  const cust=custSnap.data();
+
+  // Build items
+  const items=[];
+  let totalGross=0,totalDisc=0,totalNet=0,totalCost=0;
+  document.querySelectorAll('.inv-item-row').forEach(row=>{
+    const sel=row.querySelector('select');
+    const qtyEl=row.querySelectorAll('input')[0];
+    const dEl=row.querySelectorAll('input')[1];
+    if(!sel||!sel.value)return;
+    const prod=productsCache[sel.value];if(!prod)return;
+    const qty=parseInt(qtyEl?.value)||1;
+    const dp=parseFloat(dEl?.value)||0;
+    const g=prod.price*qty,d=g*dp/100,n=g-d;
+    totalGross+=g;totalDisc+=d;totalNet+=n;totalCost+=prod.cost*qty;
+    items.push({prodId:sel.value,prodName:`[${prod.brand}] ${prod.name}`,qty,price:prod.price,discPct:dp,grossAmt:g,discAmt:d,netAmt:n,costAmt:prod.cost*qty});
+  });
+  if(!items.length){showToast('❌ Koi item add nahi kiya!');return;}
+
+  // Invoice number
+  const invNum='INV-'+Date.now().toString().slice(-6);
+  const now=nowStamp();
+
+  // Save invoice
+  await setDoc(doc(db,'invoices',invNum),{
+    invNum,custCode:code,custName:cust.name,items,
+    totalGross,totalDisc,totalNet,totalCost,note,date:now
+  });
+
+  // Save each item as sale (auto)
+  for(const item of items){
+    await addDoc(collection(db,'sales'),{
+      prodName:item.prodName,prodId:item.prodId,qty:item.qty,
+      costTotal:item.costAmt,grossTotal:item.grossAmt,
+      discPct:item.discPct,discountAmt:item.discAmt,netRevenue:item.netAmt,
+      invoiceNum:invNum,custCode:code,custName:cust.name,note,date:now
     });
-    show('reg-success');
-    clearF('reg-user','reg-pass','reg-confirm');
-    document.getElementById('user-check').textContent='';
-    document.getElementById('pass-strength').textContent='';
-    showToast('📨 Request bhej di! Admin approve karega.');
-}
-window.doRegister = doRegister;
-
-// ====== LOGIN ======
-function onRoleChange() {
-    const role = getVal('login-role');
-    ['login-err','login-pending','login-rejected'].forEach(hide);
-    ['grp-login-user','grp-login-pass','btn-login'].forEach(hide);
-    clearF('login-user','login-pass');
-    if(role==='admin') {
-        // Fetch current admin username from Firestore
-        getDoc(doc(db,'settings','admin')).then(snap => {
-            const savedUser = snap.exists() && snap.data().username ? snap.data().username : 'admin';
-            document.getElementById('login-user').value    = savedUser;
-        });
-        document.getElementById('login-user').readOnly = true;
-        document.getElementById('login-user').style.background='#f1f5f9';
-        show('grp-login-user'); show('grp-login-pass'); show('btn-login');
-    } else if(role==='partner' || role==='coadmin') {
-        document.getElementById('login-user').readOnly = false;
-        document.getElementById('login-user').style.background='';
-        show('grp-login-user'); show('grp-login-pass'); show('btn-login');
+    // Deduct stock
+    const prod=productsCache[item.prodId];
+    if(prod&&(prod.stock||0)>0){
+      await updateDoc(doc(db,'products',item.prodId),{stock:Math.max(0,(prod.stock||0)-item.qty)});
     }
+  }
+
+  // Update customer balance (add udhaar)
+  await updateDoc(doc(db,'customers',code),{
+    balance:(cust.balance||0)+totalNet,
+    totalSales:(cust.totalSales||0)+totalNet
+  });
+
+  // Add to ledger
+  await addDoc(collection(db,'ledger'),{
+    custCode:code,custName:cust.name,type:'sale',
+    invNum,amount:totalNet,balance:(cust.balance||0)+totalNet,
+    note,date:now
+  });
+
+  showToast('✅ Invoice save ho gaya: '+invNum);
+
+  if(andPrint) printInvoice(invNum,cust,items,totalGross,totalDisc,totalNet,note,now);
+
+  // Reset form
+  document.getElementById('inv-cust-code').value='';
+  hide('inv-cust-info');
+  document.getElementById('inv-items-container').innerHTML=`
+    <div class="inv-item-row" id="inv-item-0">
+      <select onchange="calcInvoice()" style="flex:2;"><option value="">-- Product --</option></select>
+      <input type="number" placeholder="Qty" min="1" value="1" oninput="calcInvoice()" style="max-width:60px;">
+      <input type="number" placeholder="Disc%" min="0" max="100" value="0" oninput="calcInvoice()" style="max-width:65px;">
+      <span style="font-size:11px;color:var(--muted);">%</span>
+    </div>`;
+  rebuildProductDropdowns();
+  document.getElementById('inv-summary').style.display='none';
+  clearF('inv-note');
+  invItemCount=1;
 }
-window.onRoleChange = onRoleChange;
+window.submitInvoice=submitInvoice;
 
-async function doLogin() {
-    const role  = getVal('login-role');
-    const uname = getVal('login-user');
-    const pass  = document.getElementById('login-pass').value;
-    ['login-err','login-pending','login-rejected'].forEach(hide);
-    if(!role||!uname||!pass) { showToast('❌ Sab fields bharein!'); return; }
-
-    if(role==='admin') {
-        const snap = await getDoc(doc(db,'settings','admin'));
-        const adminPass = snap.exists() ? snap.data().password : 'admin123';
-        const adminUser = snap.exists() && snap.data().username ? snap.data().username : 'admin';
-        if(uname===adminUser && pass===adminPass) { currentRole='admin'; currentUsername=adminUser; loginSuccess(); }
-        else show('login-err');
-        return;
-    }
-
-    if(role==='partner' || role==='coadmin') {
-        const snap = await getDoc(doc(db,'partnerRequests', uname.toLowerCase()));
-        if(!snap.exists() || snap.data().password !== pass) { show('login-err'); return; }
-        const data = snap.data();
-        // Make sure role matches
-        if(data.roleType !== role) { show('login-err'); return; }
-        const st = data.status;
-        if(st==='pending')  { show('login-pending');  return; }
-        if(st==='rejected') { show('login-rejected'); return; }
-        if(st==='approved') { currentRole=role; currentUsername=data.username; loginSuccess(); }
-    }
+function printInvoice(invNum,cust,items,gross,disc,net,note,dateStr){
+  const rows=items.map(i=>`<tr><td>${i.prodName}</td><td>${i.qty}</td><td>${i.price.toLocaleString()}</td><td>${i.discPct}%</td><td><b>${i.netAmt.toLocaleString()}</b></td></tr>`).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Invoice ${invNum}</title>
+  <style>body{font-family:Arial,sans-serif;padding:30px;font-size:13px;color:#1e293b;}
+  .header{display:flex;justify-content:space-between;margin-bottom:20px;border-bottom:2px solid #e2e8f0;padding-bottom:16px;}
+  .co{font-size:22px;font-weight:800;letter-spacing:2px;}.co-sub{font-size:10px;color:#64748b;}
+  .inv-info{text-align:right;font-size:12px;}.inv-num{font-size:16px;font-weight:800;color:#1e40af;}
+  .cust-box{background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;}
+  th{background:#f1f5f9;font-weight:700;color:#64748b;font-size:11px;text-transform:uppercase;}
+  .totals{background:#f8fafc;border-radius:8px;padding:12px;text-align:right;}
+  .tot-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;}
+  .tot-row.final{font-size:15px;font-weight:800;color:#1e40af;border-top:2px solid #e2e8f0;padding-top:8px;margin-top:4px;}
+  .footer{margin-top:20px;text-align:center;font-size:10px;color:#94a3b8;}
+  @media print{body{padding:15px;}}</style></head><body>
+  <div class="header">
+    <div><div class="co">MS TRADERS</div><div class="co-sub">Enterprise Resource Planning</div></div>
+    <div class="inv-info"><div class="inv-num">${invNum}</div><div>${dateStr}</div></div>
+  </div>
+  <div class="cust-box">
+    <b>Customer:</b> ${cust.name} &nbsp;|&nbsp; <b>Code:</b> ${cust.code||''} &nbsp;|&nbsp; <b>Phone:</b> ${cust.phone||'-'} &nbsp;|&nbsp; <b>Area:</b> ${cust.area||'-'}
+  </div>
+  <table><thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Disc%</th><th>Net</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+  <div class="totals">
+    <div class="tot-row"><span>Gross Total</span><span>PKR ${gross.toLocaleString()}</span></div>
+    <div class="tot-row"><span>Discount</span><span style="color:#0284c7">- PKR ${disc.toLocaleString()}</span></div>
+    <div class="tot-row final"><span>Net Payable</span><span>PKR ${net.toLocaleString()}</span></div>
+  </div>
+  ${note?`<div style="margin-top:12px;font-size:12px;color:#64748b;"><b>Note:</b> ${note}</div>`:''}
+  <div class="footer">MS Traders ERP System — Thank You!</div>
+  <script>window.onload=()=>window.print();<\/script></body></html>`;
+  const w=window.open('','_blank');w.document.write(html);w.document.close();
 }
-window.doLogin = doLogin;
+async function reprintInvoice(invId){
+  const snap=await getDoc(doc(db,'invoices',invId));
+  if(!snap.exists())return;
+  const inv=snap.data();
+  const custSnap=await getDoc(doc(db,'customers',inv.custCode));
+  const cust=custSnap.exists()?custSnap.data():{name:inv.custName,code:inv.custCode,phone:'',area:''};
+  printInvoice(inv.invNum,cust,inv.items,inv.totalGross,inv.totalDisc,inv.totalNet,inv.note,inv.date);
+}
+window.reprintInvoice=reprintInvoice;
 
-document.getElementById('login-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+// ===== RECOVERY WITH CUSTOMER =====
+async function addRecoveryWithCustomer(){
+  const code=document.getElementById('r-cust-code').value.trim().toUpperCase();
+  const amount=getNum('r-amount'),note=getVal('r-note');
+  if(!code){showToast('❌ Customer code daalen!');return;}
+  if(amount<=0){showToast('❌ Amount daalen!');return;}
+  const custSnap=await getDoc(doc(db,'customers',code));
+  if(!custSnap.exists()){showToast('❌ Customer nahi mila: '+code);return;}
+  const cust=custSnap.data();
+  const now=nowStamp();
+  // Save recovery
+  await addDoc(collection(db,'recoveries'),{desc:cust.name,custCode:code,amount,note,date:now});
+  // Update customer balance
+  const newBal=(cust.balance||0)-amount;
+  await updateDoc(doc(db,'customers',code),{balance:newBal,totalRecovery:(cust.totalRecovery||0)+amount});
+  // Add to ledger
+  await addDoc(collection(db,'ledger'),{
+    custCode:code,custName:cust.name,type:'recovery',
+    amount,balance:newBal,note,date:now
+  });
+  clearF('r-cust-code','r-amount','r-note');
+  document.getElementById('r-cust-name').textContent='';
+  showToast('✅ Recovery: '+cust.name+' PKR '+amount.toLocaleString());
+}
+window.addRecoveryWithCustomer=addRecoveryWithCustomer;
 
-function loginSuccess() {
-    hide('auth-screen');
-    show('main-app');
-    document.getElementById('user-display-name').textContent = currentUsername;
-    const badge = document.getElementById('role-badge');
-    if(currentRole==='admin')   { badge.textContent='ADMIN';    badge.style.background='var(--brand2)'; }
-    if(currentRole==='coadmin') { badge.textContent='CO-ADMIN'; badge.style.background='#7c3aed'; }
-    if(currentRole==='partner') { badge.textContent='PARTNER';  badge.style.background='var(--success)'; }
-    applyAccess();
-    startListeners();
+async function lookupRecoveryCustomer(){
+  const code=document.getElementById('r-cust-code').value.trim().toUpperCase();
+  if(!code)return;
+  const snap=await getDoc(doc(db,'customers',code));
+  const el=document.getElementById('r-cust-name');
+  if(snap.exists()){
+    const c=snap.data();
+    const bal=c.balance||0;
+    el.textContent=c.name+(bal>0?` | ⚠️ Udhaar: PKR ${bal.toLocaleString()}`:'');
+    el.style.color=bal>0?'var(--warning)':'var(--success)';
+  } else { el.textContent='❌ Customer nahi mila'; el.style.color='var(--danger)'; }
+}
+window.lookupRecoveryCustomer=lookupRecoveryCustomer;
+
+// ===== LEDGER =====
+async function loadLedger(){
+  const code=document.getElementById('ledger-code').value.trim().toUpperCase();
+  if(!code){showToast('❌ Customer code daalen!');return;}
+  const custSnap=await getDoc(doc(db,'customers',code));
+  const ledEl=document.getElementById('ledger-body'),infoEl=document.getElementById('ledger-cust-info');
+  if(!custSnap.exists()){ledEl.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--danger)">❌ Customer nahi mila</td></tr>';return;}
+  const cust=custSnap.data();
+  const bal=cust.balance||0;
+  infoEl.innerHTML=`<b>${cust.name}</b> | Code: <b>${code}</b> | Phone: ${cust.phone||'-'} | Area: ${cust.area||'-'}<br>
+    <span style="font-weight:700;color:${bal>0?'var(--warning)':bal<0?'var(--success)':'var(--muted)'}">
+    ${bal>0?`⚠️ Pending Udhaar: PKR ${bal.toLocaleString()}`:bal<0?`✅ Advance: PKR ${Math.abs(bal).toLocaleString()}`:'✅ Account Clear'}</span>`;
+  show('ledger-cust-info');
+
+  const ledSnap=await getDocs(collection(db,'ledger'));
+  const entries=ledSnap.docs.map(d=>d.data()).filter(e=>e.custCode===code);
+  entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
+
+  if(!entries.length){ledEl.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted)">Koi transaction nahi</td></tr>';return;}
+  ledEl.innerHTML=entries.map(e=>{
+    const isRec=e.type==='recovery', isRet=e.type==='return', isSale=e.type==='sale';
+    const typeColor = isRec?'var(--success-bg)':isRet?'var(--warning-bg)':'#eff6ff';
+    const typeTxtColor = isRec?'var(--success)':isRet?'var(--warning)':'var(--brand)';
+    const typeLabel = isRec?'Recovery':isRet?'↩️ Return':'Sale';
+    const amtColor = isRec?'var(--success)':isRet?'var(--warning)':'var(--danger)';
+    const prefix = isRec?'- ':isRet?'- ':'+';
+    return `<tr>
+      <td><span class="date-chip">${e.date||''}</span></td>
+      <td><span style="font-size:10px;background:${typeColor};color:${typeTxtColor};padding:2px 7px;border-radius:8px;font-weight:700">${typeLabel}</span></td>
+      <td>${e.invNum||e.retNum||'-'}</td>
+      <td style="color:${amtColor};font-weight:700">${prefix}PKR ${e.amount.toLocaleString()}</td>
+      <td style="font-weight:700;color:${(e.balance||0)>0?'var(--warning)':'var(--success)'}">PKR ${(e.balance||0).toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+}
+window.loadLedger=loadLedger;
+
+async function printLedger(){
+  const code=document.getElementById('ledger-code').value.trim().toUpperCase();
+  if(!code)return;
+  const custSnap=await getDoc(doc(db,'customers',code));
+  if(!custSnap.exists())return;
+  const cust=custSnap.data();
+  const ledSnap=await getDocs(collection(db,'ledger'));
+  const entries=ledSnap.docs.map(d=>d.data()).filter(e=>e.custCode===code);
+  entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const bal=cust.balance||0;
+  const rows=entries.map(e=>{
+    const isRec=e.type==='recovery', isRet=e.type==='return';
+    const lbl = isRec?'Recovery':isRet?'Return':'Sale';
+    const prefix = isRec||isRet ? '-' : '+';
+    return `<tr>
+      <td>${e.date||''}</td><td>${lbl}</td>
+      <td>${e.invNum||e.retNum||'-'}</td>
+      <td style="color:${isRec||isRet?'#059669':'#1e40af'};font-weight:700">${prefix} PKR ${e.amount.toLocaleString()}</td>
+      <td style="font-weight:700">PKR ${(e.balance||0).toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ledger - ${cust.name}</title>
+  <style>body{font-family:Arial,sans-serif;padding:24px;font-size:12px;}
+  h1{font-size:18px;font-weight:800;}.sub{color:#64748b;margin-bottom:16px;font-size:11px;}
+  .cust{background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;}
+  table{width:100%;border-collapse:collapse;}th,td{padding:7px 9px;text-align:left;border-bottom:1px solid #e2e8f0;}
+  th{background:#f1f5f9;font-weight:700;color:#64748b;font-size:11px;text-transform:uppercase;}
+  .bal{margin-top:14px;font-size:14px;font-weight:800;text-align:right;color:${bal>0?'#d97706':'#059669'};}
+  @media print{body{padding:12px;}}</style></head><body>
+  <h1>MS TRADERS — Customer Ledger</h1>
+  <div class="sub">${new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'})}</div>
+  <div class="cust"><b>${cust.name}</b> | Code: ${code} | Phone: ${cust.phone||'-'} | Area: ${cust.area||'-'}</div>
+  <table><thead><tr><th>Date</th><th>Type</th><th>Invoice</th><th>Amount</th><th>Balance</th></tr></thead>
+  <tbody>${rows||'<tr><td colspan="5" style="text-align:center">Koi record nahi</td></tr>'}</tbody></table>
+  <div class="bal">${bal>0?`Pending Udhaar: PKR ${bal.toLocaleString()}`:bal<0?`Advance: PKR ${Math.abs(bal).toLocaleString()}`:'Account Clear ✅'}</div>
+  <script>window.onload=()=>window.print();<\/script></body></html>`;
+  const w=window.open('','_blank');w.document.write(html);w.document.close();
+}
+window.printLedger=printLedger;
+
+// ===== STOCK RETURN =====
+let retItemCount = 1;
+
+async function lookupReturnCustomer(){
+  const code = document.getElementById('ret-cust-code').value.trim().toUpperCase();
+  const infoEl = document.getElementById('ret-cust-info');
+  if(!code){ hide('ret-cust-info'); return; }
+  const snap = await getDoc(doc(db,'customers',code));
+  if(!snap.exists()){
+    document.getElementById('ret-cust-name').textContent = '❌ Customer nahi mila: '+code;
+    document.getElementById('ret-cust-name').style.color = 'var(--danger)';
+    document.getElementById('ret-cust-bal').textContent = '';
+    show('ret-cust-info'); return;
+  }
+  const c = snap.data();
+  const bal = c.balance||0;
+  document.getElementById('ret-cust-name').textContent = c.name + ' | ' + code;
+  document.getElementById('ret-cust-name').style.color = 'var(--primary)';
+  document.getElementById('ret-cust-bal').textContent  = bal>0 ? `⚠️ Pending Udhaar: PKR ${bal.toLocaleString()}` : bal<0 ? `✅ Advance: PKR ${Math.abs(bal).toLocaleString()}` : '✅ Account Clear';
+  document.getElementById('ret-cust-bal').style.color  = bal>0 ? 'var(--warning)' : 'var(--success)';
+  show('ret-cust-info');
+  rebuildReturnDropdowns();
+}
+window.lookupReturnCustomer = lookupReturnCustomer;
+
+function rebuildReturnDropdowns(){
+  document.querySelectorAll('#ret-items-container select').forEach(sel=>{
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">-- Product --</option>' +
+      Object.values(productsCache).map(p=>`<option value="${p.id}">[${p.brand}] ${p.name} (PKR ${p.price}) — Stock: ${p.stock||0}</option>`).join('');
+    if(cur) sel.value = cur;
+  });
 }
 
-function logout() {
-    currentRole=null; currentUsername=null;
-    unsubscribers.forEach(u=>u()); unsubscribers=[];
-    document.getElementById('login-role').value='';
-    clearF('login-user','login-pass');
-    ['grp-login-user','grp-login-pass','btn-login','login-err','login-pending','login-rejected'].forEach(hide);
-    hide('main-app'); show('auth-screen','flex');
-    switchTab('login');
+function addReturnItem(){
+  retItemCount++;
+  const cont = document.getElementById('ret-items-container');
+  const row  = document.createElement('div');
+  row.className = 'inv-item-row';
+  row.innerHTML = `
+    <select onchange="calcReturn()" style="flex:2;">
+      <option value="">-- Product --</option>
+      ${Object.values(productsCache).map(p=>`<option value="${p.id}">[${p.brand}] ${p.name} (PKR ${p.price})</option>`).join('')}
+    </select>
+    <input type="number" placeholder="Qty" min="1" value="1" oninput="calcReturn()" style="max-width:60px;">
+    <button class="del-btn" onclick="this.parentElement.remove();calcReturn();" style="flex-shrink:0;">✕</button>`;
+  cont.appendChild(row);
+  calcReturn();
 }
-window.logout = logout;
+window.addReturnItem = addReturnItem;
 
-// ====== PARTNER APPROVAL ======
-async function approvePartner(username) {
-    await updateDoc(doc(db,'partnerRequests',username.toLowerCase()), { status:'approved' });
-    showToast('✅ ' + username + ' approved!');
-}
-async function rejectPartner(username) {
-    await updateDoc(doc(db,'partnerRequests',username.toLowerCase()), { status:'rejected' });
-    showToast('❌ ' + username + ' rejected.');
-}
-window.approvePartner = approvePartner;
-window.rejectPartner  = rejectPartner;
-
-// ====== ACCESS CONTROL ======
-function applyAccess() {
-    const isAdmin   = currentRole==='admin';
-    const isCoAdmin = currentRole==='coadmin';
-    const isPartner = currentRole==='partner';
-    const canSeeAll = isAdmin || isCoAdmin;   // sees all sections
-    const canEdit   = isAdmin;                // only admin can add/delete/clear
-
-    // Header buttons
-    document.getElementById('requests-panel').style.display = canSeeAll?'block':'none';
-    const clearBtn = document.getElementById('btn-clear-history');
-    if(clearBtn) clearBtn.style.display = isAdmin?'':'none';
-    const userBtn = document.getElementById('btn-change-user');
-    if(userBtn) userBtn.style.display = isAdmin?'':'none';
-
-    // Summary cards — partner can't see cost/expenses/gross/discount
-    ['card-gross','card-disc','card-cost','card-exp'].forEach(id => {
-        document.getElementById(id).style.display = canSeeAll?'':'none';
-    });
-
-    // Modules
-    document.getElementById('mod-products').style.display         = canSeeAll?'':'none';
-    document.getElementById('mod-expenses').style.display         = canSeeAll?'':'none';
-    document.getElementById('mod-expenses-partner').style.display = isPartner?'':'none';
-
-    // Sales form & delete — co-admin read only
-    document.getElementById('sales-form-admin').style.display = canEdit?'':'none';
-    document.getElementById('s-del-th').style.display         = canEdit?'':'none';
-
-    // Recovery form & delete
-    document.getElementById('rec-form-admin').style.display   = canEdit?'':'none';
-    document.getElementById('r-del-th').style.display         = canEdit?'':'none';
-
-    // Product add button & expense add button (inside mod-products & mod-expenses)
-    // These modules are hidden for partner, so just disable add buttons for co-admin
-    if(isCoAdmin) {
-        document.querySelectorAll('#mod-products button, #mod-expenses button').forEach(b => {
-            b.disabled = true;
-            b.title = 'Co-Admin sirf dekh sakta hai';
-        });
-        // Also hide delete buttons in expense table
-        document.querySelectorAll('.del-btn').forEach(b => b.style.display='none');
-    }
-}
-
-// ====== PASSWORD CHANGE ======
-async function changePassword() {
-    const oldP  = document.getElementById('cp-old').value;
-    const newP  = document.getElementById('cp-new').value;
-    const conf  = document.getElementById('cp-confirm').value;
-    const errEl = document.getElementById('cp-error');
-    errEl.style.display='none';
-
-    if(newP.length<6) { errEl.textContent='❌ Min 6 chars!'; errEl.style.display='block'; return; }
-    if(newP!==conf)   { errEl.textContent='❌ Match nahi!';  errEl.style.display='block'; return; }
-
-    if(currentRole==='admin') {
-        const snap = await getDoc(doc(db,'settings','admin'));
-        const cur  = snap.exists() ? snap.data().password : 'admin123';
-        if(oldP!==cur) { errEl.textContent='❌ Purana password galat!'; errEl.style.display='block'; return; }
-        await setDoc(doc(db,'settings','admin'), { password: newP });
-    } else {
-        // partner or co-admin
-        const snap = await getDoc(doc(db,'partnerRequests', currentUsername.toLowerCase()));
-        if(!snap.exists()||oldP!==snap.data().password) { errEl.textContent='❌ Purana password galat!'; errEl.style.display='block'; return; }
-        await updateDoc(doc(db,'partnerRequests', currentUsername.toLowerCase()), { password: newP });
-    }
-    closeModal('modal-changepass');
-    clearF('cp-old','cp-new','cp-confirm');
-    showToast('🔑 Password change ho gaya!');
-}
-window.changePassword = changePassword;
-
-// ====== USERNAME CHANGE (Admin only) ======
-function openChangeUsername() {
-    document.getElementById('cu-current').value = currentUsername;
-    document.getElementById('cu-new').value     = '';
-    document.getElementById('cu-pass').value    = '';
-    document.getElementById('cu-error').style.display = 'none';
-    openModal('modal-changeuser');
-}
-window.openChangeUsername = openChangeUsername;
-
-async function changeUsername() {
-    const newName = document.getElementById('cu-new').value.trim();
-    const pass    = document.getElementById('cu-pass').value;
-    const errEl   = document.getElementById('cu-error');
-    errEl.style.display = 'none';
-
-    if(!newName)          { errEl.textContent='❌ Naya username likhein!'; errEl.style.display='block'; return; }
-    if(newName.length<3)  { errEl.textContent='❌ Min 3 characters!'; errEl.style.display='block'; return; }
-    if(!/^[a-zA-Z0-9_]+$/.test(newName)) { errEl.textContent='❌ Sirf letters, numbers, _ allowed!'; errEl.style.display='block'; return; }
-    if(newName === currentUsername) { errEl.textContent='❌ Yeh pehle se apna username hai!'; errEl.style.display='block'; return; }
-
-    // Verify password
-    const snap = await getDoc(doc(db,'settings','admin'));
-    const adminPass = snap.exists() ? snap.data().password : 'admin123';
-    if(pass !== adminPass) { errEl.textContent='❌ Password galat hai!'; errEl.style.display='block'; return; }
-
-    // Save new username in Firestore
-    await setDoc(doc(db,'settings','admin'), { password: adminPass, username: newName });
-
-    // Update UI
-    currentUsername = newName;
-    document.getElementById('user-display-name').textContent = newName;
-    closeModal('modal-changeuser');
-    showToast('✅ Username change ho gaya: ' + newName);
-}
-window.changeUsername = changeUsername;
-
-// ====== DELETE ======
-function requestDelete(type, id) { deleteTarget={type,id}; openModal('modal-delete'); }
-async function confirmDelete() {
-    if(!deleteTarget) return;
-    const {type,id} = deleteTarget;
-    const colMap = { sale:'sales', expense:'expenses', recovery:'recoveries', product:'products' };
-    await deleteDoc(doc(db, colMap[type], id));
-    deleteTarget=null; closeModal('modal-delete');
-    showToast('🗑️ Delete ho gaya!');
-}
-window.requestDelete = requestDelete;
-window.confirmDelete = confirmDelete;
-
-// ====== DISCOUNT PREVIEW ======
-let productsCache = {};
-function updateDiscPreview() {
-    const pId  = getVal('s-product');
-    const qty  = parseInt(document.getElementById('s-qty').value)||0;
-    const disc = parseFloat(document.getElementById('s-disc').value)||0;
-    const prod = productsCache[pId];
-    const prev = document.getElementById('disc-preview');
-    if(prod&&qty>0&&disc>0) {
-        const g=prod.price*qty, d=g*disc/100, n=g-d;
-        prev.textContent=`Gross: ${g.toLocaleString()} → Disc: ${d.toLocaleString()} → Net: ${n.toLocaleString()}`;
-    } else prev.textContent='';
-}
-window.updateDiscPreview = updateDiscPreview;
-
-// ====== ADD FUNCTIONS ======
-async function addProduct() {
-    const brand=getVal('p-brand'), name=getVal('p-name');
-    const cost=getNum('p-cost'),   price=getNum('p-price');
-    if(!name)    { showToast('❌ Naam likhein!'); return; }
-    if(price<=0) { showToast('❌ Sale price daalen!'); return; }
-    await addDoc(collection(db,'products'), { brand, name, cost, price, date:nowStamp() });
-    clearF('p-name','p-cost','p-price');
-    showToast('✅ Product add ho gaya!');
-}
-window.addProduct = addProduct;
-
-async function addSale() {
-    const pId  = getVal('s-product');
-    const qty  = parseInt(document.getElementById('s-qty').value)||0;
-    const discPct = parseFloat(document.getElementById('s-disc').value)||0;
-    if(!pId)   { showToast('❌ Product select karein!'); return; }
-    if(qty<=0) { showToast('❌ Quantity daalen!'); return; }
-    const prod = productsCache[pId];
+function calcReturn(){
+  let total = 0;
+  document.querySelectorAll('#ret-items-container .inv-item-row').forEach(row=>{
+    const sel  = row.querySelector('select');
+    const qtyEl= row.querySelector('input[type="number"]');
+    if(!sel||!sel.value) return;
+    const prod = productsCache[sel.value];
     if(!prod) return;
-    const gross=prod.price*qty, discAmt=gross*discPct/100;
+    total += prod.price * (parseInt(qtyEl?.value)||1);
+  });
+  const sumEl = document.getElementById('ret-summary');
+  if(total > 0){
+    sumEl.style.display = 'block';
+    document.getElementById('ret-amount').textContent = 'PKR ' + total.toLocaleString();
+  } else { sumEl.style.display = 'none'; }
+}
+window.calcReturn = calcReturn;
+
+async function submitReturn(){
+  const code = document.getElementById('ret-cust-code').value.trim().toUpperCase();
+  const note = getVal('ret-note');
+  if(!code){ showToast('❌ Customer code daalen!'); return; }
+
+  const custSnap = await getDoc(doc(db,'customers',code));
+  if(!custSnap.exists()){ showToast('❌ Customer nahi mila!'); return; }
+  const cust = custSnap.data();
+
+  // Build return items
+  const items = [];
+  let totalReturnAmt = 0;
+  let valid = true;
+
+  document.querySelectorAll('#ret-items-container .inv-item-row').forEach(row=>{
+    const sel   = row.querySelector('select');
+    const qtyEl = row.querySelector('input[type="number"]');
+    if(!sel||!sel.value) return;
+    const prod = productsCache[sel.value];
+    if(!prod){ valid=false; showToast('❌ Product select karein!'); return; }
+    const qty = parseInt(qtyEl?.value)||1;
+    if(qty<=0){ valid=false; showToast('❌ Qty daalen!'); return; }
+    const retAmt = prod.price * qty;
+    totalReturnAmt += retAmt;
+    items.push({ prodId:sel.value, prodName:`[${prod.brand}] ${prod.name}`, qty, price:prod.price, retAmt });
+  });
+
+  if(!valid) return;
+  if(!items.length){ showToast('❌ Koi item add nahi kiya!'); return; }
+
+  const now = nowStamp();
+  const retNum = 'RET-' + Date.now().toString().slice(-6);
+
+  // 1. Save return record
+  await setDoc(doc(db,'returns',retNum), {
+    retNum, custCode:code, custName:cust.name,
+    items, totalReturnAmt, note, date:now
+  });
+
+  // 2. Add stock back for each product
+  for(const item of items){
+    const prod = productsCache[item.prodId];
+    const curStock = prod?.stock||0;
+    await updateDoc(doc(db,'products',item.prodId), { stock: curStock + item.qty });
+  }
+
+  // 3. Update customer balance (reduce udhaar)
+  const newBal = (cust.balance||0) - totalReturnAmt;
+  await updateDoc(doc(db,'customers',code), {
+    balance: newBal,
+    totalReturns: (cust.totalReturns||0) + totalReturnAmt
+  });
+
+  // 4. Add to ledger
+  await addDoc(collection(db,'ledger'), {
+    custCode:code, custName:cust.name,
+    type:'return', retNum,
+    amount:totalReturnAmt, balance:newBal,
+    note, date:now
+  });
+
+  // 5. Add negative sale entry for reporting
+  for(const item of items){
     await addDoc(collection(db,'sales'), {
-        prodName:`[${prod.brand}] ${prod.name}`, qty,
-        costTotal:prod.cost*qty, grossTotal:gross,
-        discPct, discountAmt:discAmt, netRevenue:gross-discAmt,
-        date:nowStamp()
+      prodName:item.prodName, prodId:item.prodId,
+      qty:-item.qty, costTotal:0,
+      grossTotal:-item.retAmt, discPct:0,
+      discountAmt:0, netRevenue:-item.retAmt,
+      returnNum:retNum, custCode:code, custName:cust.name,
+      note:`Return: ${note||retNum}`, date:now, isReturn:true
     });
-    clearF('s-qty'); document.getElementById('s-disc').value='0';
-    document.getElementById('disc-preview').textContent='';
-    showToast('✅ Sale log ho gai!');
+  }
+
+  showToast('✅ Return processed! '+retNum+' | PKR '+totalReturnAmt.toLocaleString());
+
+  // Reset form
+  document.getElementById('ret-cust-code').value = '';
+  hide('ret-cust-info'); hide('ret-summary');
+  document.getElementById('ret-items-container').innerHTML = `
+    <div class="inv-item-row" id="ret-item-0">
+      <select onchange="calcReturn()" style="flex:2;"><option value="">-- Product --</option></select>
+      <input type="number" placeholder="Qty" min="1" value="1" oninput="calcReturn()" style="max-width:60px;">
+    </div>`;
+  clearF('ret-note');
+  retItemCount = 1;
+  rebuildReturnDropdowns();
 }
-window.addSale = addSale;
+window.submitReturn = submitReturn;
 
-async function addExpense() {
-    const type=getVal('e-type'), amount=getNum('e-amount'), desc=getVal('e-desc');
-    if(amount<=0) { showToast('❌ Amount daalen!'); return; }
-    if(!desc)     { showToast('❌ Details likhein!'); return; }
-    await addDoc(collection(db,'expenses'), { type, amount, desc, date:nowStamp() });
-    clearF('e-amount','e-desc');
-    showToast('✅ Expense record ho gaya!');
+// ===== COMPANY MANAGEMENT =====
+let allCompanies = [];
+
+function renderCompanyDropdown(){
+  const sel = document.getElementById('p-brand');
+  if(!sel) return;
+  sel.innerHTML = allCompanies.length
+    ? allCompanies.map(c=>`<option value="${c.name}">${c.name}</option>`).join('')
+    : '<option value="">-- Pehle company add karein --</option>';
 }
-window.addExpense = addExpense;
 
-async function addRecovery() {
-    const desc=getVal('r-desc'), amount=getNum('r-amount');
-    if(!desc)     { showToast('❌ Party naam likhein!'); return; }
-    if(amount<=0) { showToast('❌ Amount daalen!'); return; }
-    await addDoc(collection(db,'recoveries'), { desc, amount, date:nowStamp() });
-    clearF('r-desc','r-amount');
-    showToast('✅ Recovery record ho gai!');
+function renderCompanyList(){
+  const el = document.getElementById('company-list');
+  if(!el) return;
+  if(!allCompanies.length){ el.innerHTML='<div class="empty-state"><div class="empty-icon">🏢</div>Koi company nahi</div>'; return; }
+  el.innerHTML = allCompanies.map(c=>`
+    <div class="list-item">
+      <span style="font-weight:600;">🏢 ${c.name}</span>
+      <button class="del-btn" onclick="deleteCompany('${c.id}')">🗑</button>
+    </div>`).join('');
 }
-window.addRecovery = addRecovery;
 
-// ====== REAL-TIME LISTENERS ======
-function startListeners() {
-    const isAdmin = currentRole==='admin';
+async function addCompany(){
+  const name = document.getElementById('new-company-name').value.trim();
+  if(!name){ showToast('❌ Company naam likhein!'); return; }
+  const exists = allCompanies.find(c=>c.name.toLowerCase()===name.toLowerCase());
+  if(exists){ showToast('❌ Yeh company pehle se hai!'); return; }
+  await addDoc(collection(db,'companies'),{ name, date:nowStamp() });
+  document.getElementById('new-company-name').value = '';
+  showToast('✅ Company add ho gayi: '+name);
+}
+window.addCompany = addCompany;
 
-    // PRODUCTS
-    unsubscribers.push(onSnapshot(collection(db,'products'), snap => {
-        productsCache = {};
-        const listEl = document.getElementById('product-list-view');
-        const dropEl = document.getElementById('s-product');
-        listEl.innerHTML=''; dropEl.innerHTML='';
-        if(snap.empty) {
-            listEl.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div>Koi product nahi</div>';
-            dropEl.innerHTML='<option value="">-- Product add karein --</option>';
-            return;
-        }
-        snap.forEach(d => {
-            const p={id:d.id,...d.data()}; productsCache[d.id]=p;
-            listEl.innerHTML+=`<div class="list-item">
-                <div><span style="color:var(--muted);font-size:11px">[${p.brand}]</span> <b>${p.name}</b><br>
-                <span style="font-size:10px;color:var(--muted)">Cost:${p.cost.toLocaleString()} | Sale:${p.price.toLocaleString()}</span></div>
-                <div>${isAdmin?`<button class="del-btn" onclick="requestDelete('product','${d.id}')">🗑</button>`:''}</div>
-            </div>`;
-            dropEl.innerHTML+=`<option value="${d.id}">[${p.brand}] ${p.name} (${p.price})</option>`;
-        });
+async function deleteCompany(id){
+  await deleteDoc(doc(db,'companies',id));
+  showToast('🗑️ Company delete ho gayi!');
+}
+window.deleteCompany = deleteCompany;
+
+// ===== EXPIRY CHECKER =====
+function checkExpiryAlerts(products){
+  const alerted = new Set();
+  products.forEach(p=>{
+    if(!p.expiry||alerted.has(p.id)) return;
+    const info = getExpiryInfo(p.expiry);
+    if(!info) return;
+    if(info.months < 0){
+      addNotif('🚨','Expired Product!',`[${p.brand}] ${p.name} ki expiry guzar gayi! (${p.expiry})`);
+      alerted.add(p.id);
+    } else if(info.months <= 7){
+      addNotif('📅','Short Expiry Alert',`[${p.brand}] ${p.name} — sirf ${info.months} mahine baqi (${p.expiry})`);
+      alerted.add(p.id);
+    }
+  });
+}
+
+// ===== LOW STOCK CHECKER =====
+function checkLowStockAlerts(products){
+  products.forEach(p=>{
+    const stock = p.stock||0;
+    if(stock > 0 && stock <= 100){
+      addNotif('⚠️','Low Stock Alert',`[${p.brand}] ${p.name} — sirf ${stock} units in hand`);
+    } else if(stock === 0){
+      addNotif('🔴','Out of Stock!',`[${p.brand}] ${p.name} — stock khatam ho gaya!`);
+    }
+  });
+}
+
+// ===== LISTENERS (add customers, invoices, ledger) =====
+function startListeners(){
+  const isAdmin=currentRole==='admin',canSeeAll=isAdmin||currentRole==='coadmin';
+
+  unsubscribers.push(onSnapshot(collection(db,'products'),snap=>{
+    allProducts=snap.docs.map(d=>({id:d.id,...d.data()}));
+    allProducts.forEach(p=>{productsCache[p.id]=p;});
+    renderProducts();
+    // Run expiry + low stock alerts once on load
+    checkExpiryAlerts(allProducts);
+    checkLowStockAlerts(allProducts);
+  }));
+
+  unsubscribers.push(onSnapshot(collection(db,'sales'),snap=>{
+    allSales=snap.docs.map(d=>({id:d.id,...d.data()}));renderSales();updateCharts();
+  }));
+  unsubscribers.push(onSnapshot(collection(db,'expenses'),snap=>{
+    allExpenses=snap.docs.map(d=>({id:d.id,...d.data()}));renderExpenses();updateCharts();
+  }));
+  unsubscribers.push(onSnapshot(collection(db,'recoveries'),snap=>{
+    allRecoveries=snap.docs.map(d=>({id:d.id,...d.data()}));renderRecovery();updateCharts();
+  }));
+
+  unsubscribers.push(onSnapshot(collection(db,'returns'),snap=>{
+    const rows=document.getElementById('ret-rows');
+    if(!rows)return;
+    rows.innerHTML='';
+    const rets=snap.docs.map(d=>({id:d.id,...d.data()}));
+    rets.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(!rets.length){rows.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">↩️</div>Koi return nahi</div></td></tr>';return;}
+    rets.forEach(r=>{
+      const itemSummary=(r.items||[]).map(i=>`${i.prodName} x${i.qty}`).join(', ');
+      rows.innerHTML+=`<tr>
+        <td><b>${r.custName}</b> <span style="font-size:10px;color:var(--muted)">(${r.custCode})</span></td>
+        <td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${itemSummary}">${itemSummary}</td>
+        <td style="color:var(--warning);font-weight:700">PKR ${(r.totalReturnAmt||0).toLocaleString()}</td>
+        <td><span class="date-chip">${r.date||''}</span></td>
+        <td>${currentRole==='admin'?`<button class="del-btn" onclick="requestDelete('return','${r.id}')">🗑</button>`:''}</td>
+      </tr>`;
+    });
+  }));
+
+  unsubscribers.push(onSnapshot(collection(db,'customers'),snap=>{
+    allCustomers={};
+    snap.forEach(d=>{allCustomers[d.id]={...d.data(),code:d.id};});
+    renderCustomers();
+  }));
+
+  unsubscribers.push(onSnapshot(collection(db,'invoices'),snap=>{
+    const rows=document.getElementById('inv-rows');
+    if(!rows)return;
+    rows.innerHTML='';
+    const invs=snap.docs.map(d=>({id:d.id,...d.data()}));
+    invs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(!invs.length){rows.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🧾</div>Koi invoice nahi</div></td></tr>';return;}
+    invs.forEach(inv=>{
+      rows.innerHTML+=`<tr>
+        <td><b style="color:var(--brand)">${inv.invNum}</b></td>
+        <td>${inv.custName} <span style="font-size:10px;color:var(--muted)">(${inv.custCode})</span></td>
+        <td style="color:var(--brand);font-weight:700">PKR ${(inv.totalNet||0).toLocaleString()}</td>
+        <td><span class="date-chip">${inv.date||''}</span></td>
+        <td>${currentRole==='admin'?`<button class="del-btn" onclick="requestDelete('invoice','${inv.id}')">🗑</button>`:''}
+            <button class="del-btn" style="color:var(--brand);border-color:#bfdbfe;" onclick="reprintInvoice('${inv.id}')">🖨️</button>
+        </td></tr>`;
+    });
+  }));
+
+  // Company listener
+  unsubscribers.push(onSnapshot(collection(db,'companies'),snap=>{
+    allCompanies=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Add default companies if none exist
+    if(allCompanies.length===0 && isAdmin){
+      const defaults=['Young Doctors Products','MS Products'];
+      defaults.forEach(name=>addDoc(collection(db,'companies'),{name,date:nowStamp()}));
+    }
+    renderCompanyDropdown();
+    renderCompanyList();
+  }));
+
+  if(canSeeAll){
+    unsubscribers.push(onSnapshot(collection(db,'partnerRequests'),snap=>{
+      const panel=document.getElementById('requests-list'),badge=document.getElementById('pending-count');
+      if(snap.empty){panel.innerHTML='<div class="empty-state">📭 Koi request nahi</div>';hide('pending-count');return;}
+      let pending=0;const items=[];
+      snap.forEach(d=>{const r={id:d.id,...d.data()};if(r.status==='pending'){pending++;addNotif('🤝','New Request',r.username+' ('+(r.roleType==='coadmin'?'Co-Admin':'Partner')+')');}items.push(r);});
+      items.sort((a,b)=>({pending:0,approved:1,rejected:2}[a.status]-({pending:0,approved:1,rejected:2}[b.status])));
+      if(pending>0){badge.textContent=pending;show('pending-count','inline-block');}else hide('pending-count');
+      panel.innerHTML=items.map(r=>{
+        const init=r.username.charAt(0).toUpperCase();
+        const stLbl=r.status==='pending'?'Pending':r.status==='approved'?'Approved ✅':'Rejected ❌';
+        const roleLbl=r.roleType==='coadmin'?'🛡️ Co-Admin':'🤝 Partner';
+        const acts=r.status==='pending'
+          ?`<button class="btn-success" style="width:auto;padding:4px 10px;font-size:11px" onclick="approvePartner('${r.username}')">✅ Approve</button>
+             <button class="btn-danger" style="width:auto;padding:4px 10px;font-size:11px" onclick="rejectPartner('${r.username}')">❌ Reject</button>`
+          :r.status==='approved'
+          ?`<button class="btn-danger" style="width:auto;padding:4px 10px;font-size:11px" onclick="rejectPartner('${r.username}')">Revoke</button>`
+          :`<button class="btn-success" style="width:auto;padding:4px 10px;font-size:11px" onclick="approvePartner('${r.username}')">Re-Approve</button>`;
+        return `<div class="req-item">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="req-avatar">${init}</div>
+            <div><div class="req-name">@${r.username} <span style="font-size:10px;background:#f1f5f9;padding:1px 6px;border-radius:8px;color:var(--muted);font-weight:600">${roleLbl}</span></div>
+            <div class="req-time">📅 ${r.date||''}</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span class="req-status ${r.status}">${stLbl}</span>
+            <div style="display:flex;gap:5px">${acts}</div>
+          </div></div>`;
+      }).join('');
     }));
-
-    // SALES
-    unsubscribers.push(onSnapshot(collection(db,'sales'), snap => {
-        const rows=document.getElementById('sales-rows');
-        rows.innerHTML='';
-        let tG=0,tD=0,tN=0,tC=0;
-        if(snap.empty){ rows.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📈</div>Koi sale nahi</div></td></tr>'; }
-        snap.forEach(d=>{
-            const s=d.data(); tG+=s.grossTotal; tD+=s.discountAmt; tN+=s.netRevenue; tC+=s.costTotal;
-            rows.innerHTML+=`<tr>
-                <td><b>${s.prodName}</b></td><td>${s.qty}</td>
-                <td style="color:#6366f1">${s.grossTotal.toLocaleString()}</td>
-                <td style="color:var(--sky)">${s.discPct}%</td>
-                <td style="color:var(--sky)">-${s.discountAmt.toLocaleString()}</td>
-                <td style="color:var(--brand);font-weight:700">${s.netRevenue.toLocaleString()}</td>
-                <td><span class="date-chip">${s.date||''}</span></td>
-                <td>${isAdmin?`<button class="del-btn" onclick="requestDelete('sale','${d.id}')">🗑</button>`:''}</td></tr>`;
-        });
-        updateSummary({tG,tD,tN,tC});
-    }));
-
-    // EXPENSES
-    unsubscribers.push(onSnapshot(collection(db,'expenses'), snap => {
-        const rows=document.getElementById('exp-rows');
-        rows.innerHTML='';
-        let tE=0;
-        if(snap.empty){ rows.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">💸</div>Koi expense nahi</div></td></tr>'; }
-        snap.forEach(d=>{
-            const e=d.data(); tE+=e.amount;
-            rows.innerHTML+=`<tr>
-                <td><b style="color:var(--danger)">${e.type}</b></td><td>${e.desc}</td>
-                <td>${e.amount.toLocaleString()}</td>
-                <td><span class="date-chip">${e.date||''}</span></td>
-                <td>${isAdmin?`<button class="del-btn" onclick="requestDelete('expense','${d.id}')">🗑</button>`:''}</td></tr>`;
-        });
-        // Partner total update
-        const partnerTotalEl = document.getElementById('partner-exp-total');
-        if(partnerTotalEl) partnerTotalEl.textContent = tE.toLocaleString();
-        window._tE=tE; recalcPL();
-    }));
-
-    // RECOVERIES
-    unsubscribers.push(onSnapshot(collection(db,'recoveries'), snap => {
-        const rows=document.getElementById('rec-rows');
-        rows.innerHTML='';
-        let tR=0;
-        if(snap.empty){ rows.innerHTML='<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">💰</div>Koi recovery nahi</div></td></tr>'; }
-        snap.forEach(d=>{
-            const r=d.data(); tR+=r.amount;
-            rows.innerHTML+=`<tr>
-                <td><b>${r.desc}</b></td>
-                <td style="color:var(--success)">+${r.amount.toLocaleString()}</td>
-                <td><span class="date-chip">${r.date||''}</span></td>
-                <td>${isAdmin?`<button class="del-btn" onclick="requestDelete('recovery','${d.id}')">🗑</button>`:''}</td></tr>`;
-        });
-        window._tR=tR; recalcPL();
-    }));
-
-    // PARTNER REQUESTS (admin only)
-    if(isAdmin) {
-        unsubscribers.push(onSnapshot(collection(db,'partnerRequests'), snap => {
-            const panel=document.getElementById('requests-list');
-            const badge=document.getElementById('pending-count');
-            if(snap.empty){ panel.innerHTML='<div class="empty-req">📭 Koi request nahi</div>'; hide('pending-count'); return; }
-            let pending=0;
-            const items=[];
-            snap.forEach(d=>{ const r={id:d.id,...d.data()}; if(r.status==='pending') pending++; items.push(r); });
-            items.sort((a,b)=>({pending:0,approved:1,rejected:2}[a.status]-({pending:0,approved:1,rejected:2}[b.status])));
-            if(pending>0){ badge.textContent=pending; show('pending-count','inline-block'); } else hide('pending-count');
-            panel.innerHTML=items.map(r=>{
-                const init=r.username.charAt(0).toUpperCase();
-                const stLabel=r.status==='pending'?'Pending':r.status==='approved'?'Approved ✅':'Rejected ❌';
-                const roleLabel = r.roleType==='coadmin' ? '🛡️ Co-Admin' : '🤝 Partner';
-                const actions=r.status==='pending'
-                    ?`<button class="btn-success" style="width:auto;padding:5px 12px;font-size:12px" onclick="approvePartner('${r.username}')">✅ Approve</button>
-                      <button class="btn-danger"  style="width:auto;padding:5px 12px;font-size:12px" onclick="rejectPartner('${r.username}')">❌ Reject</button>`
-                    :r.status==='approved'
-                    ?`<button class="btn-danger" style="width:auto;padding:5px 12px;font-size:12px" onclick="rejectPartner('${r.username}')">❌ Revoke</button>`
-                    :`<button class="btn-success" style="width:auto;padding:5px 12px;font-size:12px" onclick="approvePartner('${r.username}')">✅ Re-Approve</button>`;
-                return `<div class="req-item">
-                    <div style="display:flex;align-items:center;gap:10px">
-                        <div class="req-avatar">${init}</div>
-                        <div><div class="req-name">@${r.username} <span style="font-size:10px;background:#f1f5f9;padding:2px 7px;border-radius:10px;color:var(--muted);font-weight:600;">${roleLabel}</span></div><div class="req-time">📅 ${r.date||''}</div></div>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span class="req-status ${r.status}">${stLabel}</span>
-                        <div style="display:flex;gap:6px">${actions}</div>
-                    </div></div>`;
-            }).join('');
-        }));
-    }
+  }
 }
 
-// ====== SUMMARY UPDATER ======
-window._tE=0; window._tR=0; window._tG=0; window._tD=0; window._tN=0; window._tC=0;
-function updateSummary({tG,tD,tN,tC}) {
-    window._tG=tG; window._tD=tD; window._tN=tN; window._tC=tC;
-    document.getElementById('log-gross').textContent = tG.toLocaleString();
-    document.getElementById('log-disc').textContent  = tD.toLocaleString();
-    document.getElementById('log-net').textContent   = tN.toLocaleString();
-    document.getElementById('log-cost').textContent  = tC.toLocaleString();
-    recalcPL();
-}
-function recalcPL() {
-    const tE=window._tE||0, tR=window._tR||0;
-    const tN=window._tN||0, tC=window._tC||0;
-    const credit=Math.max(0,tN-tR);
-    const pl=tN-(tC+tE);
-    document.getElementById('log-exp').textContent    = tE.toLocaleString();
-    document.getElementById('log-rec').textContent    = tR.toLocaleString();
-    document.getElementById('log-credit').textContent = credit.toLocaleString();
-    document.getElementById('log-pl').textContent     = (pl>=0?'+ ':'')+pl.toLocaleString();
-    const plCard=document.getElementById('pl-card'), plTitle=document.getElementById('pl-title'), plVal=document.getElementById('log-pl');
-    if(pl>=0){ plTitle.textContent='⭐ Net Profit'; plCard.className='sum-card profit'; plVal.style.color='var(--success)'; }
-    else     { plTitle.textContent='⚠️ Net Loss';  plCard.className='sum-card loss';   plVal.style.color='var(--danger)'; }
-}
-
-// ====== EXPORT PDF ======
-function exportPDF() {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'});
-    const tG=window._tG||0, tD=window._tD||0, tN=window._tN||0;
-    const tC=window._tC||0, tE=window._tE||0, tR=window._tR||0;
-    const credit=Math.max(0,tN-tR), pl=tN-(tC+tE);
-    const plColor = pl>=0 ? '#059669' : '#dc2626';
-    const plLabel = pl>=0 ? 'Net Profit' : 'Net Loss';
-
-    // Build sales rows
-    const sRows = document.getElementById('sales-rows');
-    let salesHTML = '';
-    if(sRows) {
-        Array.from(sRows.querySelectorAll('tr')).forEach(tr => {
-            const tds = tr.querySelectorAll('td');
-            if(tds.length >= 6) {
-                salesHTML += `<tr>
-                    <td>${tds[0].textContent}</td>
-                    <td>${tds[1].textContent}</td>
-                    <td>${tds[2].textContent}</td>
-                    <td>${tds[3].textContent}</td>
-                    <td>${tds[4].textContent}</td>
-                    <td><b>${tds[5].textContent}</b></td>
-                    <td style="font-size:10px;color:#64748b">${tds[6]?tds[6].textContent:''}</td>
-                </tr>`;
-            }
-        });
-    }
-
-    // Build expense rows (admin only)
-    const eRows = document.getElementById('exp-rows');
-    let expHTML = '';
-    if(eRows && currentRole==='admin') {
-        Array.from(eRows.querySelectorAll('tr')).forEach(tr => {
-            const tds = tr.querySelectorAll('td');
-            if(tds.length >= 3) {
-                expHTML += `<tr><td>${tds[0].textContent}</td><td>${tds[1].textContent}</td><td><b>${tds[2].textContent}</b></td><td style="font-size:10px;color:#64748b">${tds[3]?tds[3].textContent:''}</td></tr>`;
-            }
-        });
-    }
-
-    // Build recovery rows
-    const rRows = document.getElementById('rec-rows');
-    let recHTML = '';
-    if(rRows) {
-        Array.from(rRows.querySelectorAll('tr')).forEach(tr => {
-            const tds = tr.querySelectorAll('td');
-            if(tds.length >= 2) {
-                recHTML += `<tr><td>${tds[0].textContent}</td><td style="color:#059669"><b>${tds[1].textContent}</b></td><td style="font-size:10px;color:#64748b">${tds[2]?tds[2].textContent:''}</td></tr>`;
-            }
-        });
-    }
-
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <title>MS Traders - ERP Report</title>
-    <style>
-        body{font-family:Arial,sans-serif;padding:30px;color:#1e293b;font-size:13px;}
-        h1{font-size:22px;font-weight:800;letter-spacing:2px;color:#0f172a;margin:0;}
-        .sub{font-size:11px;color:#64748b;margin-bottom:24px;}
-        .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
-        .scard{background:#f8fafc;border-radius:8px;padding:14px;border-top:3px solid #cbd5e1;}
-        .scard.green{border-top-color:#059669;background:#ecfdf5;}
-        .scard.red{border-top-color:#dc2626;background:#fef2f2;}
-        .scard.blue{border-top-color:#1e40af;}
-        .scard.purple{border-top-color:#6366f1;}
-        .scard .t{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;}
-        .scard .v{font-size:18px;font-weight:800;margin-top:4px;}
-        h2{font-size:14px;font-weight:700;margin:20px 0 10px;padding-bottom:6px;border-bottom:2px solid #e2e8f0;}
-        table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px;}
-        th{background:#f1f5f9;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;color:#64748b;}
-        td{padding:7px 10px;border-bottom:1px solid #e2e8f0;}
-        .footer{margin-top:30px;text-align:center;font-size:11px;color:#94a3b8;}
-        @media print{body{padding:15px;}}
-    </style></head><body>
-    <h1>MS TRADERS</h1>
-    <div class="sub">ERP Financial Report — Generated: ${dateStr} | By: ${currentUsername}</div>
-
-    <div class="summary">
-        <div class="scard purple"><div class="t">Gross Sale</div><div class="v" style="color:#6366f1">PKR ${tG.toLocaleString()}</div></div>
-        <div class="scard blue"><div class="t">Net Sale</div><div class="v" style="color:#1e40af">PKR ${tN.toLocaleString()}</div></div>
-        <div class="scard"><div class="t">Total Discount</div><div class="v" style="color:#0284c7">PKR ${tD.toLocaleString()}</div></div>
-        ${currentRole==='admin'?`<div class="scard"><div class="t">Product Cost</div><div class="v">PKR ${tC.toLocaleString()}</div></div>`:''}
-        ${currentRole==='admin'?`<div class="scard red"><div class="t">Expenses</div><div class="v" style="color:#dc2626">PKR ${tE.toLocaleString()}</div></div>`:''}
-        <div class="scard green"><div class="t">Cash Recovery</div><div class="v" style="color:#059669">PKR ${tR.toLocaleString()}</div></div>
-        <div class="scard"><div class="t">Market Credit</div><div class="v" style="color:#d97706">PKR ${credit.toLocaleString()}</div></div>
-        <div class="scard ${pl>=0?'green':'red'}"><div class="t">${plLabel}</div><div class="v" style="color:${plColor}">PKR ${Math.abs(pl).toLocaleString()}</div></div>
-    </div>
-
-    <h2>📈 Sales Record</h2>
-    <table><thead><tr><th>Product</th><th>Qty</th><th>Gross</th><th>Disc%</th><th>Disc Amt</th><th>Net Sale</th><th>Date</th></tr></thead>
-    <tbody>${salesHTML||'<tr><td colspan="7" style="text-align:center;color:#94a3b8">Koi record nahi</td></tr>'}</tbody></table>
-
-    ${currentRole==='admin'?`<h2>💸 Expenses Record</h2>
-    <table><thead><tr><th>Type</th><th>Details</th><th>Amount</th><th>Date</th></tr></thead>
-    <tbody>${expHTML||'<tr><td colspan="4" style="text-align:center;color:#94a3b8">Koi record nahi</td></tr>'}</tbody></table>`:''}
-
-    <h2>💰 Recovery Record</h2>
-    <table><thead><tr><th>Party</th><th>Amount</th><th>Date</th></tr></thead>
-    <tbody>${recHTML||'<tr><td colspan="3" style="text-align:center;color:#94a3b8">Koi record nahi</td></tr>'}</tbody></table>
-
-    <div class="footer">MS Traders ERP System — ${dateStr}</div>
-    <script>window.onload=()=>window.print();<\/script>
-    </body></html>`;
-
-    const win = window.open('','_blank');
-    win.document.write(html);
-    win.document.close();
-}
-window.exportPDF = exportPDF;
-
-// ====== CLEAR HISTORY ======
-async function confirmClear() {
-    const clearSales    = document.getElementById('clr-sales').checked;
-    const clearExpenses = document.getElementById('clr-expenses').checked;
-    const clearRecovery = document.getElementById('clr-recovery').checked;
-
-    if(!clearSales && !clearExpenses && !clearRecovery) {
-        showToast('❌ Kuch select nahi kiya!'); return;
-    }
-
-    const deleteAll = async (colName) => {
-        const snap = await getDocs(collection(db, colName));
-        const promises = [];
-        snap.forEach(d => promises.push(deleteDoc(doc(db, colName, d.id))));
-        await Promise.all(promises);
-    };
-
-    if(clearSales)    await deleteAll('sales');
-    if(clearExpenses) await deleteAll('expenses');
-    if(clearRecovery) await deleteAll('recoveries');
-
-    closeModal('modal-clear');
-    showToast('✅ History clear ho gayi!');
-}
-window.confirmClear = confirmClear;
-
-// ====== INIT ======
-hideLoading();
+// ===== INIT =====
+const ls=document.getElementById('loading-screen');
+ls.style.opacity='0';ls.style.transition='opacity .4s';
+setTimeout(()=>{ls.style.display='none';show('auth-screen','flex');},400);
 </script>
 </body>
 </html>
